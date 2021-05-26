@@ -125,3 +125,18 @@ class Cognito():
             return user_token
         except idp_client.exceptions.NotAuthorizedException:
             raise botocore.exceptions.NotAuthorizedException
+
+    # 로그아웃
+    def sign_out(self, access_token):
+        try:
+            idp_client = boto3.client('cognito-idp', **self.DEFAULT_CONFIG)
+
+            response = idp_client.global_sign_out(
+                AccessToken=access_token
+            )
+
+            return response
+
+        # 로그인 상태가 아닐 시
+        except idp_client.exceptions.NotAuthorizedException:
+            raise botocore.exceptions.NotAuthorizedException

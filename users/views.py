@@ -68,7 +68,7 @@ class ConfirmSignUp(APIView):
             request.data['user_id'],
         )
 
-        return Response(response, status=status.HTTP_202_ACCEPTED)
+        return Response(response, status=status.HTTP_200_OK)
 
     # 회원가입 확인 코드 확인
     def post(self, request):
@@ -81,7 +81,7 @@ class ConfirmSignUp(APIView):
                 request.data['code'],
             )
 
-            return Response(response, status=status.HTTP_202_ACCEPTED)
+            return Response(response, status=status.HTTP_200_OK)
 
         # 만료된 코드
         except botocore.exceptions.ExpiredCodeException:
@@ -102,7 +102,7 @@ class SignIn(APIView):
                 request.data['user_id'],
                 request.data['user_password']
             )
-            return Response(user_token, status=status.HTTP_202_ACCEPTED)
+            return Response(user_token, status=status.HTTP_200_OK)
         # 아이디 혹은 비밀번호가 일치하지 않음
         except botocore.exceptions.NotAuthorizedException:
             return Response(status=status.HTTP_400_BAD_REQUEST)
@@ -112,15 +112,16 @@ class SignIn(APIView):
 class SignOut(APIView):
     def get(self, request):
         try:
-            idp_client = boto3.client('cognito-idp', **settings.DEFAULT_CONFIG)
+            # Cognito를 통해 로그아웃
+            cog = Cognito()
+            response = cog.sign_out(
+                request.data['token']
+            )
 
-            user = idp_client.global_sign_out(
-                AccessToken=request.data['token'])
-
-            return Response(status=status.HTTP_200_OK)
+            return Response(response, status=status.HTTP_200_OK)
 
         # 로그인 상태가 아닐 시
-        except idp_client.exceptions.NotAuthorizedException:
+        except botocore.exceptions.NotAuthorizedException:
             return Response(status=status.HTTP_404_NOT_FOUND)
 
 
