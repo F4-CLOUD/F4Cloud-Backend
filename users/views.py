@@ -4,6 +4,7 @@ import botocore
 import botocore.exceptions
 import json
 from rest_framework import response
+import rest_framework
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
@@ -107,7 +108,7 @@ class SignIn(APIView):
             return Response(user_token, status=status.HTTP_200_OK)
         # 아이디 혹은 비밀번호가 일치하지 않음
         except botocore.exceptions.NotAuthorizedException:
-            return Response(status=status.HTTP_400_BAD_REQUEST)
+            return Response("ID or Password mismatch", status=status.HTTP_400_BAD_REQUEST)
 
 
 # 로그아웃
@@ -124,7 +125,7 @@ class SignOut(APIView):
 
         # 로그인 상태가 아닐 시
         except botocore.exceptions.NotAuthorizedException:
-            return Response(status=status.HTTP_404_NOT_FOUND)
+            return Response("Not Sign in now", status=status.HTTP_404_NOT_FOUND)
 
 
 # 비밀번호 변경
@@ -142,84 +143,82 @@ class ChangePassword(APIView):
 
         # 현재 비밀번호가 일치하지 않음
         except botocore.exceptions.NotAuthorizedException:
-            return Response(status=status.HTTP_400_BAD_REQUEST)
+            return Response("Current Password mismatch", status=status.HTTP_400_BAD_REQUEST)
 
         # 비밀번호는 최소 6자리, 특수문자, 대문자, 소문자, 숫자를 포함해야 함
         except botocore.exceptions.InvalidPasswordException:
-            return Response(status=status.HTTP_400_BAD_REQUEST)
+            return Response("Invalid New Password", status=status.HTTP_400_BAD_REQUEST)
 
         # 비밀번호는 최소 6자리, 특수문자, 대문자, 소문자, 숫자를 포함해야 함
         except botocore.exceptions.ParamValidationError:
-            return Response(status=status.HTTP_400_BAD_REQUEST)
+            return Response("Invalid New Password", status=status.HTTP_400_BAD_REQUEST)
 
         # 횟수 초과
         except botocore.exceptions.LimitExceededException:
-            return Response(status=status.HTTP_403_FORBIDDEN)
+            return Response("Count Over", status=status.HTTP_403_FORBIDDEN)
 
         # 유효하지 않은 ACCESSTOKEN 로그인 필요
         except botocore.exceptions.InvalidParameterException:
-            return Response(status=status.HTTP_401_UNAUTHORIZED)
+            return Response("Invalid Tokken", status=status.HTTP_401_UNAUTHORIZED)
 
 
 # 비밀번호 잊어버렸을 때
 class ForgotPassword(APIView):
     def post(self, request):
-        idp_client = boto3.client('cognito-idp', **settings.DEFAULT_CONFIG)
-        user = idp_client.forgot_password(ClientId=settings.DEFAULT_USER_POOL_APP_ID,
-                                          Username=request.data['username']
-                                          )
+        try:
+            cog = Cognito()
+            response = cog.forgot_password(
+                request.data['user_id']
+            )
 
-        settings.USERNAME = request.data['username']
-
-        return Response(status=status.HTTP_201_CREATED)
+            return Response(response, status=status.HTTP_200_OK)
+        except botocore.exceptions as e:
+            return Response(e, status=status.HTTP_400_BAD_REQUEST)
 
 
 # 비밀번호 잊어버린 거 Confirm
 class ConfirmForgotPassword(APIView):
     def post(self, request):
         try:
-            idp_client = boto3.client('cognito-idp', **settings.DEFAULT_CONFIG)
-            user = idp_client.confirm_forgot_password(ClientId=settings.DEFAULT_USER_POOL_APP_ID,
-                                                      Username=settings.USERNAME,
-                                                      Password=request.data['newpassword'],
-                                                      ConfirmationCode=request.data['code']
-                                                      )
+            cog = Cognito()
+            response = cog.reset_password(
+                request.data['user_id'],
+                request.data['new_password'],
+                request.data['code'],
+            )
 
-            # # TODO : db password 변경
-            # user = get_object_or_404(User, user_id=settings.USERNAME)
-            # serializers = PasswordSerializer(
-            #     user, {'user_password': request.data['newpassword'], }
-            # )
-
-            if serializers.is_valid():
-                serializers.save()
-
-            return Response(status=status.HTTP_201_CREATED)
+            return Response(response, status=status.HTTP_200_OK)
 
         # 재시도 필요
         except botocore.exceptions.ParamValidationError:
-            return Response(status=status.HTTP_401_UNAUTHORIZED)
+            return Response("Retry", status=status.HTTP_401_UNAUTHORIZED)
         # 만료된 코드
-        except idp_client.exceptions.ExpiredCodeException:
-            return Response(status=status.HTTP_400_BAD_REQUEST)
+        except botocore.exceptions.ExpiredCodeException:
+            return Response("Expired Code", status=status.HTTP_400_BAD_REQUEST)
         # 올바르지 않은 코드
-        except idp_client.exceptions.CodeMismatchException:
-            return Response(status=status.HTTP_400_BAD_REQUEST)
+        except botocore.exceptions.CodeMismatchException:
+            return Response("Wrong Code", status=status.HTTP_400_BAD_REQUEST)
 
 
 # 사용자 삭제 탈퇴
 class DeleteUser(APIView):
     def get(self, request):
         try:
-            idp_client = boto3.client('cognito-idp', **settings.DEFAULT_CONFIG)
-            user = idp_client.delete_user(AccessToken=settings.ACCESS_TOKEN)
+            cog = Cognito()
+            cog.delete_user(
+                request.data['token']['AccessToken']
+            )
 
-            # TODO : db에서 삭제
-            # user = User.objects.filter(user_id=settings.USERNAME)
-            # user.delete()
+            # DB에서 사용자 삭제 (CASCADE이므로 하위 상관 없음)
+            user = User.objects.filter(
+                user_id=request.data['token']['User']['id']
+            )
+            user.delete()
+
+            # TODO : 해당 사용자의 S3 버킷 폴더 밀기
 
             return Response(status=status.HTTP_200_OK)
 
         # ACCESS_TOKEN 필요 로그인 필요
-        except:
-            return Response(status=status.HTTP_401_UNAUTHORIZED)
+        except Exception as e:
+            return Response(e, status=status.HTTP_401_UNAUTHORIZED)

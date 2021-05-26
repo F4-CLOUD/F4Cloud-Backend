@@ -2,6 +2,7 @@
 import jwt
 import boto3
 import botocore.exceptions
+from rest_framework import response
 
 from f4cloud.settings import *
 
@@ -172,3 +173,50 @@ class Cognito():
         # 유효하지 않은 ACCESSTOKEN 로그인 필요
         except idp_client.exceptions.InvalidParameterException:
             raise botocore.exceptions.InvalidParameterException
+
+    # 비밀번호 잊어버림
+    def forgot_password(self, username):
+        client = boto3.client('cognito-idp', **self.DEFAULT_CONFIG)
+        response = client.forgot_password(
+            ClientId=self.DEFAULT_USER_POOL_APP_ID,
+            Username=username,
+        )
+
+        return response
+
+    # 비밀번호 초기화
+    def reset_password(self, username, new_password, confirmation_code):
+        try:
+            client = boto3.client('cognito-idp', **self.DEFAULT_CONFIG)
+            response = client.confirm_forgot_password(
+                ClientId=self.DEFAULT_USER_POOL_APP_ID,
+                Username=username,
+                Password=new_password,
+                ConfirmationCode=confirmation_code,
+            )
+
+            return response
+
+        # 재시도 필요
+        except botocore.exceptions.ParamValidationError:
+            raise botocore.exceptions.ParamValidationError
+        # 만료된 코드
+        except client.exceptions.ExpiredCodeException:
+            raise botocore.exceptions.ExpiredCodeException
+        # 올바르지 않은 코드
+        except client.exceptions.CodeMismatchException:
+            raise botocore.exceptions.CodeMismatchException
+
+    # 사용자 탈퇴
+    def delete_user(self, access_token):
+        try:
+            client = boto3.client('cognito-idp', **self.DEFAULT_CONFIG)
+            response = client.delete_user(
+                AccessToken=access_token
+            )
+
+            return response
+
+        # ACCESS_TOKEN 필요 로그인 필요
+        except Exception as e:
+            raise e
