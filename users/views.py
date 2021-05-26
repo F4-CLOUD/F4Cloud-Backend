@@ -91,6 +91,23 @@ class ConfirmSignUp(APIView):
             return Response("Wrong Code", status=status.HTTP_400_BAD_REQUEST)
 
 
+# 로그인
+class SignIn(APIView):
+    def post(self, request):
+        try:
+            # Cognito를 이용하여 사용자 로그인
+            cog = Cognito()
+
+            user_token = cog.sign_in_admin(
+                request.data['user_id'],
+                request.data['user_password']
+            )
+            return Response(user_token, status=status.HTTP_202_ACCEPTED)
+        # 아이디 혹은 비밀번호가 일치하지 않음
+        except botocore.exceptions.NotAuthorizedException:
+            return Response(status=status.HTTP_400_BAD_REQUEST)
+
+
 # 로그아웃
 class SignOut(APIView):
     def get(self, request):
@@ -105,38 +122,6 @@ class SignOut(APIView):
         # 로그인 상태가 아닐 시
         except idp_client.exceptions.NotAuthorizedException:
             return Response(status=status.HTTP_404_NOT_FOUND)
-
-# 로그인
-
-
-class AdminInitiateAuth(APIView):
-    def post(self, request):
-        try:
-            idp_client = boto3.client('cognito-idp', **settings.DEFAULT_CONFIG)
-            ci_client = boto3.client(
-                'cognito-identity', **settings.DEFAULT_CONFIG)
-
-            user = idp_client.admin_initiate_auth(UserPoolId=settings.DEFAULT_USER_POOL_ID,
-                                                  AuthFlow='ADMIN_NO_SRP_AUTH',
-                                                  ClientId=settings.DEFAULT_USER_POOL_APP_ID,
-                                                  AuthParameters={'USERNAME': request.data['username'],
-                                                                  'PASSWORD': request.data['password']}
-                                                  )
-
-            settings.ACCESS_TOKEN = user["AuthenticationResult"]["AccessToken"]
-            settings.USERNAME = request.data['username']
-            # get identity id
-            res = ci_client.get_id(AccountId=settings.ACCOUNTID,
-                                   IdentityPoolId=settings.IDENTITYPOOLID,
-                                   Logins={
-                                       settings.DEFAULT_USER_POOL_LOGIN_PROVIDER: user[
-                                           'AuthenticationResult']['IdToken']
-                                   }
-                                   )
-            return Response(user["AuthenticationResult"]["AccessToken"], status=status.HTTP_201_CREATED)
-        # 아이디 혹은 비밀번호가 일치하지 않음
-        except idp_client.exceptions.NotAuthorizedException:
-            return Response(status=status.HTTP_400_BAD_REQUEST)
 
 
 # 비밀번호 변경
