@@ -5,13 +5,14 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.decorators import api_view
-from awscognito import settings
+from utils import settings
 from rest_framework import exceptions
 from django.http import HttpResponse
 from rest_framework.generics import get_object_or_404
 
 from .serializers import *
 from .models import User
+from utils.cognito import *
 
 # 회원가입요청
 
@@ -31,25 +32,29 @@ class SignUp(APIView):
             settings.USERNAME = request.data['user_id']
             # 이메일 공백일 시
             if(request.data['user_email'] == ''):
-                return Response(serializers.errors, status=status.HTTP_400_BAD_REQUEST)
+                return Response(status=status.HTTP_400_BAD_REQUEST)
 
         # 이미 존재하는 Id
         except idp_client.exceptions.UsernameExistsException:
-            return Response(serializers.errors, status=status.HTTP_409_CONFLICT)
+            return Response(status=status.HTTP_409_CONFLICT)
+
         # 비밀번호는 최소 6자리, 특수문자, 대문자, 소문자, 숫자를 포함해야 함
         except idp_client.exceptions.InvalidPasswordException:
-            return Response(serializers.errors, status=status.HTTP_400_BAD_REQUEST)
+            return Response(status=status.HTTP_400_BAD_REQUEST)
+
         # 비밀번호는 최소 6자리, 특수문자, 대문자, 소문자, 숫자를 포함해야 함
         except botocore.exceptions.ParamValidationError:
-            return Response(serializers.errors, status=status.HTTP_400_BAD_REQUEST)
+            return Response(status=status.HTTP_400_BAD_REQUEST)
 
-        # db에 저장
-        serializers = UserSerializer(data=request.data)
-        if serializers.is_valid():
-            serializers.save()
+        # # db에 저장
+        # serializers = UserSerializer(data=request.data)
+        # if serializers.is_valid():
+        #     serializers.save()
+
+        # serializers.data,
 
         # 이메일로 verification 전송됨
-        return Response(serializers.data, status=status.HTTP_201_CREATED)
+        return Response(status=status.HTTP_201_CREATED)
 
 
 # 회원가입 확인
@@ -108,7 +113,7 @@ class SignOut(APIView):
             idp_client = boto3.client('cognito-idp', **settings.DEFAULT_CONFIG)
 
             user = idp_client.global_sign_out(
-                AccessToken=settings.ACCESS_TOKEN)
+                AccessToken=request.data['token'])
 
             return Response(status=status.HTTP_200_OK)
 
@@ -143,7 +148,7 @@ class AdminInitiateAuth(APIView):
                                            'AuthenticationResult']['IdToken']
                                    }
                                    )
-            return Response(status=status.HTTP_201_CREATED)
+            return Response(user["AuthenticationResult"]["AccessToken"], status=status.HTTP_201_CREATED)
         # 아이디 혹은 비밀번호가 일치하지 않음
         except idp_client.exceptions.NotAuthorizedException:
             return Response(status=status.HTTP_400_BAD_REQUEST)
@@ -159,7 +164,7 @@ class ChangePassword(APIView):
                                               AccessToken=settings.ACCESS_TOKEN
                                               )
 
-            # db password 변경
+            # TODO : db password 변경
             user = get_object_or_404(User, user_id=settings.USERNAME)
             serializers = PasswordSerializer(
                 user, {'user_password': request.data['NewPassword'], }
@@ -172,15 +177,19 @@ class ChangePassword(APIView):
         # 현재 비밀번호가 일치하지 않음
         except idp_client.exceptions.NotAuthorizedException:
             return Response(status=status.HTTP_400_BAD_REQUEST)
+
         # 비밀번호는 최소 6자리, 특수문자, 대문자, 소문자, 숫자를 포함해야 함
         except idp_client.exceptions.InvalidPasswordException:
             return Response(status=status.HTTP_400_BAD_REQUEST)
+
         # 비밀번호는 최소 6자리, 특수문자, 대문자, 소문자, 숫자를 포함해야 함
         except botocore.exceptions.ParamValidationError:
             return Response(status=status.HTTP_400_BAD_REQUEST)
+
         # 횟수 초과
         except idp_client.exceptions.LimitExceededException:
             return Response(status=status.HTTP_403_FORBIDDEN)
+
         # 유효하지 않은 ACCESSTOKEN 로그인 필요
         except idp_client.exceptions.InvalidParameterException:
             return Response(status=status.HTTP_401_UNAUTHORIZED)
@@ -210,11 +219,11 @@ class ConfirmForgotPassword(APIView):
                                                       ConfirmationCode=request.data['code']
                                                       )
 
-            # db password 변경
-            user = get_object_or_404(User, user_id=settings.USERNAME)
-            serializers = PasswordSerializer(
-                user, {'user_password': request.data['newpassword'], }
-            )
+            # # TODO : db password 변경
+            # user = get_object_or_404(User, user_id=settings.USERNAME)
+            # serializers = PasswordSerializer(
+            #     user, {'user_password': request.data['newpassword'], }
+            # )
 
             if serializers.is_valid():
                 serializers.save()
@@ -255,9 +264,9 @@ class DeleteUser(APIView):
             idp_client = boto3.client('cognito-idp', **settings.DEFAULT_CONFIG)
             user = idp_client.delete_user(AccessToken=settings.ACCESS_TOKEN)
 
-            # db에서 삭제
-            user = User.objects.filter(user_id=settings.USERNAME)
-            user.delete()
+            # TODO : db에서 삭제
+            # user = User.objects.filter(user_id=settings.USERNAME)
+            # user.delete()
 
             return Response(status=status.HTTP_200_OK)
 

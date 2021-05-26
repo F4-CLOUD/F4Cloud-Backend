@@ -18,8 +18,22 @@ import configparser
 config = configparser.ConfigParser()
 config.read('config.ini')
 
+# AWS Settings
 AWS_ACCESS_KEY_ID = config['AWS']['ACCESS_KEY_ID']
 AWS_SECRET_ACCESS_KEY = config['AWS']['SECRET_ACCESS_KEY']
+IDENTITY_POOL_ID = config['AWS']['IDENTITY_POOL_ID']
+ACCOUNTID = config['AWS']['ACCOUNTID']
+DEFAULT_REGION_NAME = config['AWS']['DEFAULT_REGION_NAME']
+DEFAULT_USER_POOL_ID = config['AWS']['DEFAULT_USER_POOL_ID']
+DEFAULT_USER_POOL_APP_ID = config['AWS']['DEFAULT_USER_POOL_APP_ID']
+DEFAULT_CONFIG = {
+    'region_name': DEFAULT_REGION_NAME,
+    'aws_access_key_id': AWS_ACCESS_KEY_ID,
+    'aws_secret_access_key': AWS_SECRET_ACCESS_KEY
+}
+DEFAULT_USER_POOL_LOGIN_PROVIDER = 'cognito-idp.{0}.amazonaws.com/{1}'.format(
+    DEFAULT_REGION_NAME, DEFAULT_USER_POOL_ID
+)
 
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -48,6 +62,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'rest_framework',
+    'users.apps.UsersConfig',
     'files.apps.FilesConfig',
     'folders.apps.FoldersConfig',
 ]
