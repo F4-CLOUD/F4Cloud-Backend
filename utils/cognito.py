@@ -110,6 +110,7 @@ class Cognito():
                     'root_id': 0,
                     'trash_id': 0,
                 },
+                'exp': user_info['exp'],
                 'IdentityId': response['IdentityId'],
                 'IdToken': id_token,
                 'AccessToken': access_token,
