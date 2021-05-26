@@ -26,12 +26,12 @@ class Cognito():
     def sign_up(self, username, password, UserAttributes):
         try:
             idp_client = boto3.client('cognito-idp', **self.default_config)
-            resp = idp_client.sign_up(
+            response = idp_client.sign_up(
                 ClientId=self.app_client_id,
                 Username=username,
                 Password=password,
                 UserAttributes=UserAttributes)
-            return resp
+            return response
         # 이미 존재하는 Id
         except idp_client.exceptions.UsernameExistsException:
             raise botocore.exceptions.UsernameExistsException
@@ -45,16 +45,20 @@ class Cognito():
             raise botocore.exceptions.ParamValidationError
 
     def confirm_sign_up(self, username, confirm_code):
-
-        idp_client = boto3.client('cognito-idp')
-
-        resp = idp_client.confirm_sign_up(ClientId=self.app_client_id,
-
-                                          Username=username,
-
-                                          ConfirmationCode=confirm_code)
-
-        return resp
+        try:
+            idp_client = boto3.client('cognito-idp', **self.default_config)
+            response = idp_client.confirm_sign_up(
+                ClientId=self.app_client_id,
+                Username=username,
+                ConfirmationCode=confirm_code
+            )
+            return response
+        # 만료된 코드
+        except idp_client.exceptions.ExpiredCodeException:
+            raise botocore.exceptions.ExpiredCodeException
+        # 올바르지 않은 코드
+        except idp_client.exceptions.CodeMismatchException:
+            raise botocore.exceptions.CodeMismatchException
 
     def sign_in_admin(self, username, password):
 
