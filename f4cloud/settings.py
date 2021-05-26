@@ -18,8 +18,8 @@ import configparser
 config = configparser.ConfigParser()
 config.read('config.ini')
 
-# print(config['DB']['HOST'])
-# exit()
+AWS_ACCESS_KEY_ID = config['AWS']['ACCESS_KEY_ID']
+AWS_SECRET_ACCESS_KEY = config['AWS']['SECRET_ACCESS_KEY']
 
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.

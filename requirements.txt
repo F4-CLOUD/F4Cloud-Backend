@@ -1,3 +1,4 @@
 Django==3.2.2
 djangorestframework==3.12.4
 mysqlclient==2.0.3
+boto3==1.17.77

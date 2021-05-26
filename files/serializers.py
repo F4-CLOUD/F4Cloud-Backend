@@ -12,10 +12,10 @@ class FileSerializer(serializers.ModelSerializer):
 class FileNameSerializer(serializers.ModelSerializer):
     class Meta:
         model = File
-        fields = ('name', )
+        fields = ('s3_address', 'name', )
 
 
 class FileMoveSerializer(serializers.ModelSerializer):
     class Meta:
         model = File
-        fields = ('folder_id', )
+        fields = ('s3_address', 'folder_id', )
