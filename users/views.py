@@ -1,17 +1,7 @@
-from configparser import ConfigParser
-import boto3
-import botocore
 import botocore.exceptions
-import json
-from rest_framework import response
-import rest_framework
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
-from rest_framework.decorators import api_view
-from utils import settings
-from rest_framework import exceptions
-from django.http import HttpResponse
 from rest_framework.generics import get_object_or_404
 
 from .serializers import *
@@ -202,6 +192,10 @@ class ConfirmForgotPassword(APIView):
 
 # 사용자 삭제 탈퇴
 class DeleteUser(APIView):
+    def get_object(self, user_id):
+        user = get_object_or_404(User, user_id=user_id)
+        return user
+
     def get(self, request):
         try:
             cog = Cognito()
@@ -210,9 +204,7 @@ class DeleteUser(APIView):
             )
 
             # DB에서 사용자 삭제 (CASCADE이므로 하위 상관 없음)
-            user = User.objects.filter(
-                user_id=request.data['token']['User']['id']
-            )
+            user = self.get_object(request.data['token']['User']['id'])
             user.delete()
 
             # TODO : 해당 사용자의 S3 버킷 폴더 밀기
