@@ -140,3 +140,35 @@ class Cognito():
         # 로그인 상태가 아닐 시
         except idp_client.exceptions.NotAuthorizedException:
             raise botocore.exceptions.NotAuthorizedException
+
+    # 비밀번호 변경
+    def change_password(self, access_token, old_password, new_password):
+        try:
+            idp_client = boto3.client('cognito-idp', **self.DEFAULT_CONFIG)
+            response = idp_client.change_password(
+                AccessToken=access_token,
+                PreviousPassword=old_password,
+                ProposedPassword=new_password,
+            )
+
+            return response
+
+        # 현재 비밀번호가 일치하지 않음
+        except idp_client.exceptions.NotAuthorizedException:
+            raise botocore.exceptions.NotAuthorizedException
+
+        # 비밀번호는 최소 6자리, 특수문자, 대문자, 소문자, 숫자를 포함해야 함
+        except idp_client.exceptions.InvalidPasswordException:
+            raise botocore.exceptions.InvalidPasswordException
+
+        # 비밀번호는 최소 6자리, 특수문자, 대문자, 소문자, 숫자를 포함해야 함
+        except botocore.exceptions.ParamValidationError:
+            raise botocore.exceptions.ParamValidationError
+
+        # 횟수 초과
+        except idp_client.exceptions.LimitExceededException:
+            raise botocore.exceptions.LimitExceededException
+
+        # 유효하지 않은 ACCESSTOKEN 로그인 필요
+        except idp_client.exceptions.InvalidParameterException:
+            raise botocore.exceptions.InvalidParameterException

@@ -1,7 +1,9 @@
+from configparser import ConfigParser
 import boto3
 import botocore
 import botocore.exceptions
 import json
+from rest_framework import response
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
@@ -115,7 +117,7 @@ class SignOut(APIView):
             # Cognito를 통해 로그아웃
             cog = Cognito()
             response = cog.sign_out(
-                request.data['token']
+                request.data['token']['AccessToken']
             )
 
             return Response(response, status=status.HTTP_200_OK)
@@ -129,28 +131,21 @@ class SignOut(APIView):
 class ChangePassword(APIView):
     def post(self, request):
         try:
-            idp_client = boto3.client('cognito-idp', **settings.DEFAULT_CONFIG)
-            user = idp_client.change_password(PreviousPassword=request.data['OldPassword'],
-                                              ProposedPassword=request.data['NewPassword'],
-                                              AccessToken=settings.ACCESS_TOKEN
-                                              )
-
-            # TODO : db password 변경
-            user = get_object_or_404(User, user_id=settings.USERNAME)
-            serializers = PasswordSerializer(
-                user, {'user_password': request.data['NewPassword'], }
+            cog = Cognito()
+            response = cog.change_password(
+                request.data['token']['AccessToken'],
+                request.data['old_password'],
+                request.data['new_password'],
             )
-            if serializers.is_valid():
-                serializers.save()
 
-            return Response(status=status.HTTP_201_CREATED)
+            return Response(response, status=status.HTTP_200_OK)
 
         # 현재 비밀번호가 일치하지 않음
-        except idp_client.exceptions.NotAuthorizedException:
+        except botocore.exceptions.NotAuthorizedException:
             return Response(status=status.HTTP_400_BAD_REQUEST)
 
         # 비밀번호는 최소 6자리, 특수문자, 대문자, 소문자, 숫자를 포함해야 함
-        except idp_client.exceptions.InvalidPasswordException:
+        except botocore.exceptions.InvalidPasswordException:
             return Response(status=status.HTTP_400_BAD_REQUEST)
 
         # 비밀번호는 최소 6자리, 특수문자, 대문자, 소문자, 숫자를 포함해야 함
@@ -158,11 +153,11 @@ class ChangePassword(APIView):
             return Response(status=status.HTTP_400_BAD_REQUEST)
 
         # 횟수 초과
-        except idp_client.exceptions.LimitExceededException:
+        except botocore.exceptions.LimitExceededException:
             return Response(status=status.HTTP_403_FORBIDDEN)
 
         # 유효하지 않은 ACCESSTOKEN 로그인 필요
-        except idp_client.exceptions.InvalidParameterException:
+        except botocore.exceptions.InvalidParameterException:
             return Response(status=status.HTTP_401_UNAUTHORIZED)
 
 
@@ -212,23 +207,7 @@ class ConfirmForgotPassword(APIView):
             return Response(status=status.HTTP_400_BAD_REQUEST)
 
 
-'''
-# 사용자 정보 조회
-class RetrieveInfo(APIView):
-    def get(self,request,*args,**kwargs):
-        try:
-             idp_client = boto3.client('cognito-idp', **settings.DEFAULT_CONFIG)
-             user=idp_client.get_user(AccessToken=settings.ACCESS_TOKEN)
-
-             return Response(data={'user':user}, status=status.HTTP_201_CREATED)
-
-        except:
-            return Response(status=status.HTTP_401_UNAUTHORIZED)
-'''
-
 # 사용자 삭제 탈퇴
-
-
 class DeleteUser(APIView):
     def get(self, request):
         try:
