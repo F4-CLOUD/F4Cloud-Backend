@@ -25,7 +25,7 @@ class SignUp(APIView):
             if(request.data['user_email'] == ''):
                 return Response(status=status.HTTP_400_BAD_REQUEST)
 
-            # TODO : DB에 User 정보 저장
+            # TODO : DB에 User 정보 저장 (Collection ID)
             serializers = UserSerializer(data={
                 'user_id': request.data['user_id'],
                 'collection_id': ''
@@ -95,6 +95,9 @@ class SignIn(APIView):
                 request.data['user_id'],
                 request.data['user_password']
             )
+
+            # TODO : 사용자의 Root 폴더 ID, 휴지통 ID 불러오기
+
             return Response(user_token, status=status.HTTP_200_OK)
         # 아이디 혹은 비밀번호가 일치하지 않음
         except botocore.exceptions.NotAuthorizedException:

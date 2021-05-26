@@ -99,8 +99,6 @@ class Cognito():
             # 사용자 정보 Decoding
             user_info = jwt.decode(id_token, verify=False)
 
-            # TODO : 사용자의 Root 폴더 ID, 휴지통 ID 불러오기
-
             # User Token 생성
             user_token = {
                 'User': {
