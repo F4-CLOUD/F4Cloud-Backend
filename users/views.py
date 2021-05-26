@@ -1,5 +1,6 @@
 import boto3
 import botocore
+import botocore.exceptions
 import json
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -14,47 +15,47 @@ from .serializers import *
 from .models import User
 from utils.cognito import *
 
-# 회원가입요청
 
-
+# 회원가입 요청
 class SignUp(APIView):
     def post(self, request):
         try:
-            idp_client = boto3.client('cognito-idp', **settings.DEFAULT_CONFIG)
+            # Cognito를 통한 회원가입
+            cog = Cognito()
+            cog.sign_up(
+                request.data['user_id'],
+                request.data['user_password'],
+                [{'Name': 'email', 'Value': request.data['user_email']}, ]
+            )
 
-            user = idp_client.sign_up(ClientId=settings.DEFAULT_USER_POOL_APP_ID,
-                                      Username=request.data['user_id'],
-                                      Password=request.data['user_password'],
-                                      UserAttributes=[
-                                          {'Name': 'email', 'Value': request.data['user_email']}, ]
-                                      )
-
-            settings.USERNAME = request.data['user_id']
             # 이메일 공백일 시
             if(request.data['user_email'] == ''):
                 return Response(status=status.HTTP_400_BAD_REQUEST)
 
+            # TODO : DB에 User 정보 저장
+            serializers = UserSerializer(data={
+                'user_id': request.data['user_id'],
+                'collection_id': ''
+            })
+            if serializers.is_valid():
+                serializers.save()
+
+            # TODO : DB에 User의 Root 폴더, Trash 폴더 생성
+
+            # 이메일로 verification 전송됨
+            return Response(status=status.HTTP_201_CREATED)
+
         # 이미 존재하는 Id
-        except idp_client.exceptions.UsernameExistsException:
-            return Response(status=status.HTTP_409_CONFLICT)
+        except botocore.exceptions.UsernameExistsException:
+            return Response("ID already exist", status=status.HTTP_409_CONFLICT)
 
         # 비밀번호는 최소 6자리, 특수문자, 대문자, 소문자, 숫자를 포함해야 함
-        except idp_client.exceptions.InvalidPasswordException:
-            return Response(status=status.HTTP_400_BAD_REQUEST)
+        except botocore.exceptions.InvalidPasswordException:
+            return Response("Invalid password", status=status.HTTP_400_BAD_REQUEST)
 
         # 비밀번호는 최소 6자리, 특수문자, 대문자, 소문자, 숫자를 포함해야 함
         except botocore.exceptions.ParamValidationError:
-            return Response(status=status.HTTP_400_BAD_REQUEST)
-
-        # # db에 저장
-        # serializers = UserSerializer(data=request.data)
-        # if serializers.is_valid():
-        #     serializers.save()
-
-        # serializers.data,
-
-        # 이메일로 verification 전송됨
-        return Response(status=status.HTTP_201_CREATED)
+            return Response("Invalid password", status=status.HTTP_400_BAD_REQUEST)
 
 
 # 회원가입 확인

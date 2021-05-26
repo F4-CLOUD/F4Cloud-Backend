@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
-import configparser
-
 import boto3
+import botocore.exceptions
 
 from f4cloud.settings import *
 
@@ -25,13 +24,25 @@ class Cognito():
 
     # 회원가입
     def sign_up(self, username, password, UserAttributes):
-        idp_client = boto3.client('cognito-idp', **self.default_config)
-        resp = idp_client.sign_up(
-            ClientId=self.app_client_id,
-            Username=username,
-            Password=password,
-            UserAttributes=UserAttributes)
-        return resp
+        try:
+            idp_client = boto3.client('cognito-idp', **self.default_config)
+            resp = idp_client.sign_up(
+                ClientId=self.app_client_id,
+                Username=username,
+                Password=password,
+                UserAttributes=UserAttributes)
+            return resp
+        # 이미 존재하는 Id
+        except idp_client.exceptions.UsernameExistsException:
+            raise botocore.exceptions.UsernameExistsException
+
+        # 비밀번호는 최소 6자리, 특수문자, 대문자, 소문자, 숫자를 포함해야 함
+        except idp_client.exceptions.InvalidPasswordException:
+            raise botocore.exceptions.InvalidPasswordException
+
+        # 비밀번호는 최소 6자리, 특수문자, 대문자, 소문자, 숫자를 포함해야 함
+        except botocore.exceptions.ParamValidationError:
+            raise botocore.exceptions.ParamValidationError
 
     def confirm_sign_up(self, username, confirm_code):
 
