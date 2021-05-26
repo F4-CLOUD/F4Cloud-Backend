@@ -60,6 +60,14 @@ class Cognito():
         except idp_client.exceptions.CodeMismatchException:
             raise botocore.exceptions.CodeMismatchException
 
+    def resend_confirmation_code(self, username):
+        idp_client = boto3.client('cognito-idp', **self.default_config)
+        response = idp_client.resend_confirmation_code(
+            ClientId=self.app_client_id,
+            Username=username
+        )
+        return response
+
     def sign_in_admin(self, username, password):
 
         # Get ID Token

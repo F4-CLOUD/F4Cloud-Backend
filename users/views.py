@@ -60,6 +60,17 @@ class SignUp(APIView):
 
 # 회원가입 확인
 class ConfirmSignUp(APIView):
+    # 회원가입 확인 코드 재발급
+    def get(self, request):
+        cog = Cognito()
+
+        response = cog.resend_confirmation_code(
+            request.data['user_id'],
+        )
+
+        return Response(response, status=status.HTTP_202_ACCEPTED)
+
+    # 회원가입 확인 코드 확인
     def post(self, request):
         try:
             # Cognito를 통해 회원가입 확인
@@ -70,7 +81,7 @@ class ConfirmSignUp(APIView):
                 request.data['code'],
             )
 
-            return Response(response, status=status.HTTP_201_CREATED)
+            return Response(response, status=status.HTTP_202_ACCEPTED)
 
         # 만료된 코드
         except botocore.exceptions.ExpiredCodeException:
@@ -78,26 +89,6 @@ class ConfirmSignUp(APIView):
         # 올바르지 않은 코드
         except botocore.exceptions.CodeMismatchException:
             return Response("Wrong Code", status=status.HTTP_400_BAD_REQUEST)
-
-
-# 회원가입 확인 코드 재발급
-class GetEmailVerification(APIView):
-    def post(self, request):
-        idp_client = boto3.client('cognito-idp', **settings.DEFAULT_CONFIG)
-
-        # SignUp하고 난 뒤 username이 유효하면 request에 username 필요 없지만 만료될 시 필요
-        username = ''
-        if(settings.USERNAME == ''):
-            username = request.data['username']
-        else:
-            username = settings.USERNAME
-
-        user = idp_client.resend_confirmation_code(ClientId=settings.DEFAULT_USER_POOL_APP_ID,
-                                                   Username=username
-                                                   )
-
-        # 지정한 이메일로 verification code 전송 (user['CodeDeliveryDetails']['Destination'])
-        return Response(status=status.HTTP_201_CREATED)
 
 
 # 로그아웃
