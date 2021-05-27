@@ -4,17 +4,19 @@ from rest_framework.views import APIView
 from rest_framework.generics import get_object_or_404
 from rest_framework import status
 from rest_framework.response import Response
-from rest_framework.decorators import api_view
 
 from .serializers import *
 from .models import File
 from utils.s3 import *
+from utils.cognito import is_token_valid
 
 
 class FileCreate(APIView):
     # 파일 업로드
     def post(self, request):
-        # TODO : Permission 확인
+        # Permission 확인
+        if not is_token_valid(token=request.headers['ID-Token'], user_id=request.data['user_id']):
+            return Response(status=status.HTTP_403_FORBIDDEN)
 
         # 파일 정보 확인
         file_info = json.loads(request.data['file_info'])
@@ -55,7 +57,9 @@ class FileDetail(APIView):
 
     # 파일 정보 조회
     def get(self, request, file_id):
-        # TODO : Permission 확인
+        # Permission 확인
+        if not is_token_valid(token=request.headers['ID-Token'], user_id=request.data['user_id']):
+            return Response(status=status.HTTP_403_FORBIDDEN)
 
         # 파일 정보 확인
         file = self.get_object(file_id)
@@ -66,7 +70,9 @@ class FileDetail(APIView):
 
     # 파일 다운로드
     def post(self, request, file_id):
-        # TODO : Permission 확인
+        # Permission 확인
+        if not is_token_valid(token=request.headers['ID-Token'], user_id=request.data['user_id']):
+            return Response(status=status.HTTP_403_FORBIDDEN)
 
         # 파일 정보 확인
         file = self.get_object(file_id)
@@ -77,7 +83,9 @@ class FileDetail(APIView):
 
     # 파일 이름 변경
     def put(self, request, file_id):
-        # TODO : Permission 확인
+        # Permission 확인
+        if not is_token_valid(token=request.headers['ID-Token'], user_id=request.data['user_id']):
+            return Response(status=status.HTTP_403_FORBIDDEN)
 
         # 파일 불러오기
         file = self.get_object(file_id)
@@ -110,7 +118,9 @@ class FileDetail(APIView):
 
     # 파일 삭제
     def delete(self, request, file_id):
-        # TODO : Permission 확인
+        # Permission 확인
+        if not is_token_valid(token=request.headers['ID-Token'], user_id=request.data['user_id']):
+            return Response(status=status.HTTP_403_FORBIDDEN)
 
         # 사용자의 휴지통 정보 가져오기
         trash = request.data['trash']
@@ -137,7 +147,9 @@ class FileMove(APIView):
 
     # 파일 이동
     def post(self, request, file_id):
-        # TODO : Permission 확인
+        # Permission 확인
+        if not is_token_valid(token=request.headers['ID-Token'], user_id=request.data['user_id']):
+            return Response(status=status.HTTP_403_FORBIDDEN)
 
         # 파일 불러오기
         file = self.get_object(file_id)
@@ -177,7 +189,9 @@ class FileCopy(APIView):
 
     # 파일 복사
     def post(self, request, file_id):
-        # TODO : Permission 확인
+        # Permission 확인
+        if not is_token_valid(token=request.headers['ID-Token'], user_id=request.data['user_id']):
+            return Response(status=status.HTTP_403_FORBIDDEN)
 
         # 파일 정보 확인
         file = self.get_object(file_id)

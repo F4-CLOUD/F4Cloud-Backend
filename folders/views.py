@@ -1,9 +1,7 @@
-from rest_framework import response
 from rest_framework.views import APIView
 from rest_framework import status
 from rest_framework.generics import get_object_or_404
 from rest_framework.response import Response
-import jwt
 
 from .models import Folder
 from .serializers import *
