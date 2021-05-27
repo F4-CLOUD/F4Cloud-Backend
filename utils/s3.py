@@ -24,6 +24,14 @@ def get_s3_client(access_key_id, secret_access_key, session_token=None):
     return s3_client
 
 
+def get_s3_url(path, name):
+    return 'https://{0}.s3.amazonaws.com/{1}{2}'.format(
+        S3_BUCKET_ID,
+        path,
+        name
+    )
+
+
 # ----------------------------
 # 폴더 관련 모듈
 # ----------------------------
@@ -85,14 +93,12 @@ def rename_move_folder(s3_client, target, new_key):
 # 파일 관련 모듈
 # ----------------------------
 # 파일 업로드
-
-
-def upload_file(bucket, target, file_name):
+def upload_file(s3_client, file, file_name):
     try:
-        response = s3client.put_object(
-            Bucket=bucket,
+        response = s3_client.put_object(
+            Bucket=S3_BUCKET_ID,
             Key=file_name,
-            Body=target,
+            Body=file,
             ACL='public-read'
         )
         return response

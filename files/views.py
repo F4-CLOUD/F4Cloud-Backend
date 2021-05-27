@@ -18,29 +18,34 @@ class FileCreate(APIView):
         if not is_token_valid(token=request.headers['ID-Token'], user_id=request.data['user_id']):
             return Response(status=status.HTTP_403_FORBIDDEN)
 
-        # 파일 정보 확인
-        file_info = json.loads(request.data['file_info'])
-        user_info = json.loads(request.data['user'])
-
         # 파일 불러오기
         file = request.FILES.get('file')
 
-        # S3에 업로드
-        print(upload_file(
-            user_info['bucket'], file, '{0}_{1}'.format(
-                file_info['folder_id'], file_info['name']
-            ))
+        # S3 Client 생성
+        s3_client = get_s3_client(
+            request.headers['Access-Key-Id'],
+            request.headers['Secret-Key'],
+            request.headers['Session-Token'],
         )
 
-        # S3 Address, Size 처리
-        file_info['s3_address'] = 'https://{0}.s3.amazonaws.com/{1}'.format(
-            user_info['bucket'], '{0}_{1}'.format(
-                file_info['folder_id'], file_info['name']
-            )
-        )
+        # S3에 업로드
+        upload_file(s3_client, file, '{0}/{1}/{2}'.format(
+            request.data['user_id'], request.data['path'], request.data['name']
+        ))
+
+        # S3 Address 처리
+        s3_url = get_s3_url('{0}/{1}/'.format(
+            request.data['user_id'], request.data['path']
+        ), request.data['name'])
 
         # DB에 데이터 저장
-        serializers = FileSerializer(data=file_info)
+        serializers = FileSerializer(data={
+            'folder_id': request.data['folder_id'],
+            'user_id': request.data['user_id'],
+            's3_url': s3_url,
+            'path': request.data['path'],
+            'name': request.data['name'],
+        })
         if serializers.is_valid():
             serializers.save()
 
