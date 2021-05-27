@@ -3,14 +3,13 @@ from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.generics import get_object_or_404
 
-from f4cloud.settings import AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, DEFAULT_REGION_NAME
+from f4cloud.settings import AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY
 from .serializers import *
 from .models import User
 from utils.cognito import *
+from folders.models import Folder
 from folders.serializers import FolderSerializer
-from utils.s3 import get_s3_client, upload_folder
-
-import boto3
+from utils.s3 import get_s3_client, upload_folder, delete_folder
 
 
 # 회원가입 요청
@@ -67,13 +66,6 @@ class SignUp(APIView):
             # S3 Client 생성
             s3_client = get_s3_client(
                 AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY
-            )
-
-            s3_client = boto3.client(
-                's3',
-                aws_access_key_id=AWS_ACCESS_KEY_ID,
-                aws_secret_access_key=AWS_SECRET_ACCESS_KEY,
-                region_name=DEFAULT_REGION_NAME
             )
 
             # S3에 Root 폴더에 해당하는 Key 생성
@@ -134,7 +126,13 @@ class SignIn(APIView):
                 request.data['user_password']
             )
 
-            # TODO : 사용자의 Root 폴더 ID, 휴지통 ID 불러오기
+            # 사용자의 Root 폴더 ID, 휴지통 ID 불러오기
+            root = Folder.objects.get(
+                user_id=request.data['user_id'], path='')
+            trash = Folder.objects.get(
+                user_id=request.data['user_id'], path='trash/')
+            user_token['User']['root_id'] = root.folder_id
+            user_token['User']['trash_id'] = trash.folder_id
 
             return Response(user_token, status=status.HTTP_200_OK)
 
@@ -149,7 +147,7 @@ class SignOut(APIView):
             # Cognito를 통해 로그아웃
             cog = Cognito()
             response = cog.sign_out(
-                request.data['token']['AccessToken']
+                request.headers['Authorization']
             )
 
             return Response(response, status=status.HTTP_200_OK)
@@ -164,7 +162,7 @@ class ChangePassword(APIView):
         try:
             cog = Cognito()
             response = cog.change_password(
-                request.data['token']['AccessToken'],
+                request.headers['Authorization'],
                 request.data['old_password'],
                 request.data['new_password'],
             )
@@ -217,14 +215,23 @@ class DeleteUser(APIView):
         try:
             cog = Cognito()
             cog.delete_user(
-                request.data['token']['AccessToken']
+                request.headers['Authorization']
             )
 
             # DB에서 사용자 삭제 (CASCADE이므로 하위 상관 없음)
-            user = self.get_object(request.data['token']['User']['id'])
+            user = self.get_object(request.data['user_id'])
             user.delete()
 
-            # TODO : 해당 사용자의 S3 버킷 폴더 밀기
+            # 해당 사용자의 S3 버킷 폴더 밀기
+            s3_client = get_s3_client(
+                request.headers['Access-Key-Id'],
+                request.headers['Secret-Key'],
+                request.headers['Session-Token'],
+            )
+            delete_folder(s3_client, '/'.join([request.data['user_id'], '']))
+            delete_folder(
+                s3_client, '/'.join(['trash', request.data['user_id'], ''])
+            )
 
             return Response(status=status.HTTP_200_OK)
 

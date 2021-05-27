@@ -43,6 +43,18 @@ def upload_folder(s3_client, folder):
         raise Exception('Upload Folder', e)
 
 
+# 폴더 삭제
+def delete_folder(s3_client, target):
+    try:
+        response = s3_client.delete_object(Bucket=S3_BUCKET_ID, Key=target)
+        return response
+    except Exception as e:
+        print('Error on line {}'.format(
+            sys.exc_info()[-1].tb_lineno), type(e).__name__, e
+        )
+        raise Exception('Delete Folder', e)
+
+
 # ----------------------------
 # 파일 관련 모듈
 # ----------------------------

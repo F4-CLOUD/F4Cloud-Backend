@@ -4,7 +4,7 @@ from django.db import models
 
 class Folder(models.Model):
     folder_id = models.BigAutoField(
-        auto_created=True, primary_key=True, serialize=True, verbose_name='ID'
+        auto_created=True, primary_key=True, serialize=True
     )
     parent = models.ForeignKey('self', on_delete=models.CASCADE, null=True)
     user = models.ForeignKey('users.User', on_delete=models.CASCADE)
