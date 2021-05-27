@@ -10,12 +10,14 @@ from f4cloud.settings import *
 
 # Token의 Valid 여부 파악
 def is_token_valid(token, user_id):
+    token_info = jwt.decode(token, verify=False)
+
     # Token이 Expired인지 확인
-    if datetime.datetime.utcnow() > datetime.datetime.utcfromtimestamp(token['exp']):
+    if datetime.datetime.utcnow() > datetime.datetime.utcfromtimestamp(token_info['exp']):
         return False
 
     # Token의 User ID와 매칭이 되는지 확인
-    if user_id != token['User']['id']:
+    if user_id != token_info['User']['id']:
         return False
 
     return True
@@ -129,7 +131,6 @@ class Cognito():
                     'root_id': 0,
                     'trash_id': 0,
                 },
-                'exp': user_info['exp'],
                 'IdentityId': response['IdentityId'],
                 'IdToken': id_token,
                 'AccessToken': access_token,
