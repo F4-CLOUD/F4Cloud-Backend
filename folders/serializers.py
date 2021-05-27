@@ -5,7 +5,7 @@ from .models import Folder
 class FolderSerializer(serializers.ModelSerializer):
     class Meta:
         model = Folder
-        fields = ('folder_id', 'parent_id', 'name',
+        fields = ('folder_id', 'parent', 'user', 'name', 'path',
                   'created_at', 'modified_at')
 
 
@@ -18,4 +18,4 @@ class FolderNameSerializer(serializers.ModelSerializer):
 class FolderMoveSerializer(serializers.ModelSerializer):
     class Meta:
         model = Folder
-        fields = ('parent_id',)
+        fields = ('parent',)

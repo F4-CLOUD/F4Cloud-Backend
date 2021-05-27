@@ -3,9 +3,14 @@ from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.generics import get_object_or_404
 
+from f4cloud.settings import AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, DEFAULT_REGION_NAME
 from .serializers import *
 from .models import User
 from utils.cognito import *
+from folders.serializers import FolderSerializer
+from utils.s3 import get_s3_client, upload_folder
+
+import boto3
 
 
 # 회원가입 요청
@@ -17,14 +22,6 @@ class SignUp(APIView):
             request.data['confirm_user_password']
             request.data['user_email']
 
-            # Cognito를 통한 회원가입
-            cog = Cognito()
-            response = cog.sign_up(
-                request.data['user_id'],
-                request.data['user_password'],
-                [{'Name': 'email', 'Value': request.data['user_email']}, ]
-            )
-
             # 이메일 공백일 시
             if(request.data['user_email'] == ''):
                 return Response(status=status.HTTP_400_BAD_REQUEST)
@@ -35,7 +32,7 @@ class SignUp(APIView):
 
             # Cognito를 통한 회원가입
             cog = Cognito()
-            response = cog.sign_up(
+            cog.sign_up(
                 request.data['user_id'],
                 request.data['user_password'],
                 [{'Name': 'email', 'Value': request.data['user_email']}, ]
@@ -49,7 +46,45 @@ class SignUp(APIView):
             if serializers.is_valid():
                 serializers.save()
 
-            # TODO : DB에 User의 Root 폴더, Trash 폴더 생성
+            # DB에 User의 Root 폴더, Trash 폴더 생성
+            serializers = FolderSerializer(data=[
+                {
+                    'user': request.data['user_id'],
+                    'name': request.data['user_id'],
+                    'path': '',
+                },
+                {
+                    'user': request.data['user_id'],
+                    'name': request.data['user_id'],
+                    'path': 'trash/',
+                }
+            ], many=True)
+            if not serializers.is_valid():
+                return Response(serializers.errors, content_type="application/json", status=status.HTTP_400_BAD_REQUEST)
+            serializers.save()
+
+            # S3에 User의 Root 폴더, Trash 폴더 생성
+            # S3 Client 생성
+            s3_client = get_s3_client(
+                AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY
+            )
+
+            s3_client = boto3.client(
+                's3',
+                aws_access_key_id=AWS_ACCESS_KEY_ID,
+                aws_secret_access_key=AWS_SECRET_ACCESS_KEY,
+                region_name=DEFAULT_REGION_NAME
+            )
+
+            # S3에 Root 폴더에 해당하는 Key 생성
+            upload_folder(s3_client, "/".join([
+                request.data['user_id'], ''
+            ]))
+
+            # S3에 Trash 폴더에 해당하는 Key 생성
+            upload_folder(s3_client, "/".join([
+                'trash', request.data['user_id'], ''
+            ]))
 
             # 이메일로 verification 전송됨
             return Response(status=status.HTTP_201_CREATED)

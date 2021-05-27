@@ -1,14 +1,15 @@
+from botocore import serialize
 from django.db import models
 
 
 class Folder(models.Model):
     folder_id = models.BigAutoField(
-        auto_created=True, primary_key=True, editable=False
+        auto_created=True, primary_key=True, serialize=True, verbose_name='ID'
     )
     parent = models.ForeignKey('self', on_delete=models.CASCADE, null=True)
     user = models.ForeignKey('users.User', on_delete=models.CASCADE)
     name = models.CharField(max_length=255)
-    path = models.CharField(max_length=255, null=True)
+    path = models.CharField(max_length=255, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True, editable=False)
     modified_at = models.DateTimeField(auto_now=True, editable=False)
 

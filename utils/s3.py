@@ -13,7 +13,7 @@ s3client = boto3.client(
 
 
 # S3 Client 생성
-def get_s3_client(access_key_id, secret_access_key, session_token):
+def get_s3_client(access_key_id, secret_access_key, session_token=None):
     s3_client = boto3.client(
         's3',
         aws_access_key_id=access_key_id,
