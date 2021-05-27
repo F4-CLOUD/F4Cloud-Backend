@@ -17,7 +17,7 @@ def is_token_valid(token, user_id):
         return False
 
     # Token의 User ID와 매칭이 되는지 확인
-    if user_id != token_info['User']['id']:
+    if user_id != token_info['cognito:username']:
         return False
 
     return True

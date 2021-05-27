@@ -55,6 +55,32 @@ def delete_folder(s3_client, target):
         raise Exception('Delete Folder', e)
 
 
+# 폴더 이름 변경 혹은 이동
+def rename_move_folder(s3_client, target, new_key):
+    try:
+        s3_client.copy_object(Bucket=S3_BUCKET_ID, Key=new_key, CopySource={
+            'Bucket': S3_BUCKET_ID, 'Key': target
+        }, ACL='public-read')
+
+        # 내부 컨텐츠 이동
+        contents = s3_client.list_objects(
+            Bucket=S3_BUCKET_ID, Prefix=target, Delimiter="/")
+        for content in contents['CommonPrefixes']:
+            old_path = content['Prefix']
+            new_path = new_key + old_path.replace(contents['Prefix'], '')
+            s3_client.copy_object(Bucket=S3_BUCKET_ID, Key=new_path, CopySource={
+                'Bucket': S3_BUCKET_ID, 'Key': old_path
+            }, ACL='public-read')
+            s3_client.delete_object(Bucket=S3_BUCKET_ID, Key=old_path)
+
+        s3_client.delete_object(Bucket=S3_BUCKET_ID, Key=target)
+    except Exception as e:
+        print('Error on line {}'.format(
+            sys.exc_info()[-1].tb_lineno), type(e).__name__, e
+        )
+        raise Exception('Rename or Move Folder Fail', e)
+
+
 # ----------------------------
 # 파일 관련 모듈
 # ----------------------------

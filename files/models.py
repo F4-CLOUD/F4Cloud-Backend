@@ -8,7 +8,7 @@ class File(models.Model):
                                   primary_key=True, serialize=True, verbose_name='ID')
     folder_id = models.ForeignKey(
         'folders.Folder', related_name='file_location', on_delete=models.CASCADE, db_column='folder_id')
-    s3_address = models.CharField(max_length=255)
+    s3_url = models.CharField(max_length=255)
     name = models.CharField(max_length=255)
     created_at = models.DateTimeField(auto_now_add=True, editable=False)
     modified_at = models.DateTimeField(auto_now=True, editable=False)

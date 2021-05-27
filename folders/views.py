@@ -17,7 +17,7 @@ class FolderCreate(APIView):
     # 폴더 생성
     def post(self, request):
         # Permission 확인
-        if not is_token_valid(token=request.header['Authorization'], user_id=request.data['user_id']):
+        if not is_token_valid(token=request.headers['ID-Token'], user_id=request.data['user_id']):
             return Response(status=status.HTTP_403_FORBIDDEN)
 
         # 폴더 DB에 생성
@@ -28,15 +28,15 @@ class FolderCreate(APIView):
 
         # S3 Client 생성
         s3_client = get_s3_client(
-            request.header['Access-Key-Id'],
-            request.header['Secret-Key'],
-            request.header['Session-Token'],
+            request.headers['Access-Key-Id'],
+            request.headers['Secret-Key'],
+            request.headers['Session-Token'],
         )
 
         # S3에 폴더에 해당하는 Key 생성
-        upload_folder(s3_client, "/".join([
-            request.data['user_id'], request.data['path'], request.data['name'], ''
-        ]))
+        upload_folder(s3_client, '{0}/{1}{2}/'.format(
+            request.data['user_id'], request.data['path'], request.data['name']
+        ))
 
         return Response(serializers.data, content_type="application/json", status=status.HTTP_201_CREATED)
 
@@ -50,7 +50,7 @@ class FolderDetail(APIView):
     # 폴더 정보 조회
     def get(self, request, folder_id):
         # Permission 확인
-        if not is_token_valid(token=request.header['Authorization'], user_id=request.data['user_id']):
+        if not is_token_valid(token=request.headers['ID-Token'], user_id=request.data['user_id']):
             return Response(status=status.HTTP_403_FORBIDDEN)
 
         # 폴더 불러오기
@@ -61,11 +61,25 @@ class FolderDetail(APIView):
     # 폴더 이름 변경
     def put(self, request, folder_id=None):
         # Permission 확인
-        if not is_token_valid(token=request.header['Authorization'], user_id=request.data['user_id']):
+        if not is_token_valid(token=request.headers['ID-Token'], user_id=request.data['user_id']):
             return Response(status=status.HTTP_403_FORBIDDEN)
 
         # 폴더 불러오기
         folder = self.get_object(folder_id)
+
+        # S3 내의 폴더 이름 변경
+        # S3 Client 생성
+        s3_client = get_s3_client(
+            request.headers['Access-Key-Id'],
+            request.headers['Secret-Key'],
+            request.headers['Session-Token'],
+        )
+        # S3 Key 이름 변경
+        rename_move_folder(s3_client, '{0}/{1}{2}/'.format(
+            folder.user_id.user_id, folder.path, folder.name
+        ), '{0}/{1}{2}/'.format(
+            folder.user_id.user_id, folder.path, request.data['new_name']
+        ))
 
         # Serializer와 매칭
         serializers = FolderNameSerializer(
@@ -79,7 +93,7 @@ class FolderDetail(APIView):
     # 폴더 휴지통으로 이동
     def delete(self, request, folder_id=None):
         # Permission 확인
-        if not is_token_valid(token=request.header['Authorization'], user_id=request.data['user_id']):
+        if not is_token_valid(token=request.headers['ID-Token'], user_id=request.data['user_id']):
             return Response(status=status.HTTP_403_FORBIDDEN)
 
         # 사용자의 휴지통 정보 가져오기
@@ -87,6 +101,20 @@ class FolderDetail(APIView):
 
         # 휴지통으로 옮기려는 폴더 찾기
         folder = self.get_object(folder_id)
+
+        # S3 내의 폴더 Trash 폴더로 이동
+        # S3 Client 생성
+        s3_client = get_s3_client(
+            request.headers['Access-Key-Id'],
+            request.headers['Secret-Key'],
+            request.headers['Session-Token'],
+        )
+        # S3 Key 이름 변경
+        rename_move_folder(s3_client, '{0}/{1}{2}/'.format(
+            folder.user_id.user_id, folder.path, folder.name
+        ), '{0}/{1}/{2}/'.format(
+            'trash', folder.user_id.user_id, folder.name
+        ))
 
         # Serializer와 매칭
         serializers = FolderMoveSerializer(folder, {'parent_id': trash})
@@ -101,7 +129,7 @@ class FolderElements(APIView):
     # 폴더 내 구성 요소 조회
     def get(self, request, folder_id):
         # Permission 확인
-        if not is_token_valid(token=request.header['Authorization'], user_id=request.data['user_id']):
+        if not is_token_valid(token=request.headers['ID-Token'], user_id=request.data['user_id']):
             return Response(status=status.HTTP_403_FORBIDDEN)
 
         # 1. 폴더 목록 조회
@@ -128,11 +156,29 @@ class FolderMove(APIView):
     # 폴더 이동
     def post(self, request, folder_id=None):
         # Permission 확인
-        if not is_token_valid(token=request.header['Authorization'], user_id=request.data['user_id']):
+        if not is_token_valid(token=request.headers['ID-Token'], user_id=request.data['user_id']):
             return Response(status=status.HTTP_403_FORBIDDEN)
 
         # 폴더 불러오기
         folder = self.get_object(folder_id)
+        parent = self.get_object(request.data['location'])
+
+        # S3 내의 폴더 Trash 폴더로 이동
+        # S3 Client 생성
+        s3_client = get_s3_client(
+            request.headers['Access-Key-Id'],
+            request.headers['Secret-Key'],
+            request.headers['Session-Token'],
+        )
+        # S3 Key 이름 변경
+        rename_move_folder(s3_client, '{0}/{1}{2}/'.format(
+            folder.user_id.user_id, folder.path, folder.name
+        ), '{0}/{1}{2}/'.format(
+            folder.user_id.user_id, '{0}{1}/'.format(
+                parent.path,
+                parent.name
+            ), folder.name
+        ))
 
         # Serializer와 매칭
         serializers = FolderMoveSerializer(

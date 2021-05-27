@@ -128,9 +128,9 @@ class SignIn(APIView):
 
             # 사용자의 Root 폴더 ID, 휴지통 ID 불러오기
             root = Folder.objects.get(
-                user_id=request.data['user_id'], path='')
+                user_id=request.data['user_id'], path='', parent_id=None)
             trash = Folder.objects.get(
-                user_id=request.data['user_id'], path='trash/')
+                user_id=request.data['user_id'], path='trash/', parent_id=None)
             user_token['User']['root_id'] = root.folder_id
             user_token['User']['trash_id'] = trash.folder_id
 
