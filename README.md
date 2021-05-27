@@ -37,6 +37,15 @@ HOST=                               # Host 설정
 PORT=                               # Port 설정
 USER=                               # User 설정
 PASSWORD=                           # Password 설정
+
+[AWS]
+ACCESS_KEY_ID=                      # AWS Access Key
+SECRET_ACCESS_KEY=                  # AWS Secret Access Key
+ACCOUNTID=                          # 계정 ID
+IDENTITY_POOL_ID=                   # Cognito 연동 자격 증명 풀 ID
+DEFAULT_REGION_NAME=                # 지역 이름
+DEFAULT_USER_POOL_ID=               # Cognito 풀 ID
+DEFAULT_USER_POOL_APP_ID=           # Cognito 앱 클라이언트 ID
 ```
 
 ### Migration
@@ -61,6 +70,9 @@ python manage.py runserver
 ```bash
 ├── README.md
 ├── config.ini      # 직접 추가해야 함
+├── utils
+│   ├── s3.py
+│   └── cognito.py
 ├── f4cloud
 │   ├── __init__.py
 │   ├── asgi.py
@@ -69,20 +81,23 @@ python manage.py runserver
 │   └── wsgi.py
 ├── files
 │   ├── __init__.py
-│   ├── admin.py
 │   ├── apps.py
 │   ├── models.py
 │   ├── serializers.py
-│   ├── tests.py
 │   ├── urls.py
 │   └── views.py
 ├── folders
 │   ├── __init__.py
-│   ├── admin.py
 │   ├── apps.py
 │   ├── models.py
 │   ├── serializers.py
-│   ├── tests.py
+│   ├── urls.py
+│   └── views.py
+├── users
+│   ├── __init__.py
+│   ├── apps.py
+│   ├── models.py
+│   ├── serializers.py
 │   ├── urls.py
 │   └── views.py
 ├── manage.py
