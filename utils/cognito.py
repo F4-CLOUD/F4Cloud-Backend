@@ -1,9 +1,24 @@
 # -*- coding: utf-8 -*-
+import datetime
+
 import jwt
 import boto3
 import botocore.exceptions
 
 from f4cloud.settings import *
+
+
+# Token의 Valid 여부 파악
+def is_token_valid(token, user_id):
+    # Token이 Expired인지 확인
+    if datetime.datetime.utcnow() > datetime.datetime.utcfromtimestamp(token['exp']):
+        return False
+
+    # Token의 User ID와 매칭이 되는지 확인
+    if user_id != token['User']['id']:
+        return False
+
+    return True
 
 
 class Cognito():
