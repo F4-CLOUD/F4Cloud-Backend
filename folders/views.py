@@ -1,27 +1,44 @@
-import json
-
+from rest_framework import response
 from rest_framework.views import APIView
 from rest_framework import status
 from rest_framework.generics import get_object_or_404
 from rest_framework.response import Response
+import jwt
 
 from .models import Folder
 from .serializers import *
 from files.models import File
 from files.serializers import FileSerializer
+from utils.s3 import *
+from utils.cognito import is_token_valid
 
 
 class FolderCreate(APIView):
     # 폴더 생성
     def post(self, request):
-        # TODO : Permission 확인
+        # Permission 확인
+        if not is_token_valid(token=request.header['Authorization'], user_id=request.data['user_id']):
+            return Response(status=status.HTTP_403_FORBIDDEN)
 
-        # 폴더 생성
+        # 폴더 DB에 생성
         serializers = FolderSerializer(data=request.data)
-        if serializers.is_valid():
-            serializers.save()
-            return Response(serializers.data, content_type="application/json", status=status.HTTP_201_CREATED)
-        return Response(serializers.errors, content_type="application/json", status=status.HTTP_400_BAD_REQUEST)
+        if not serializers.is_valid():
+            return Response(serializers.errors, content_type="application/json", status=status.HTTP_400_BAD_REQUEST)
+        serializers.save()
+
+        # S3 Client 생성
+        s3_client = get_s3_client(
+            request.header['Access-Key-Id'],
+            request.header['Secret-Key'],
+            request.header['Session-Token'],
+        )
+
+        # S3에 폴더에 해당하는 Key 생성
+        upload_folder(s3_client, "/".join([
+            request.data['user_id'], request.data['path'], request.data['name'], ''
+        ]))
+
+        return Response(serializers.data, content_type="application/json", status=status.HTTP_201_CREATED)
 
 
 class FolderDetail(APIView):
@@ -32,7 +49,9 @@ class FolderDetail(APIView):
 
     # 폴더 정보 조회
     def get(self, request, folder_id):
-        # TODO : Permission 확인
+        # Permission 확인
+        if not is_token_valid(token=request.header['Authorization'], user_id=request.data['user_id']):
+            return Response(status=status.HTTP_403_FORBIDDEN)
 
         # 폴더 불러오기
         folder = self.get_object(folder_id)
@@ -41,7 +60,9 @@ class FolderDetail(APIView):
 
     # 폴더 이름 변경
     def put(self, request, folder_id=None):
-        # TODO : Permission 확인
+        # Permission 확인
+        if not is_token_valid(token=request.header['Authorization'], user_id=request.data['user_id']):
+            return Response(status=status.HTTP_403_FORBIDDEN)
 
         # 폴더 불러오기
         folder = self.get_object(folder_id)
@@ -57,7 +78,9 @@ class FolderDetail(APIView):
 
     # 폴더 휴지통으로 이동
     def delete(self, request, folder_id=None):
-        # TODO : Permission 확인
+        # Permission 확인
+        if not is_token_valid(token=request.header['Authorization'], user_id=request.data['user_id']):
+            return Response(status=status.HTTP_403_FORBIDDEN)
 
         # 사용자의 휴지통 정보 가져오기
         trash = request.data['trash']
@@ -77,7 +100,9 @@ class FolderDetail(APIView):
 class FolderElements(APIView):
     # 폴더 내 구성 요소 조회
     def get(self, request, folder_id):
-        # TODO : Permission 확인
+        # Permission 확인
+        if not is_token_valid(token=request.header['Authorization'], user_id=request.data['user_id']):
+            return Response(status=status.HTTP_403_FORBIDDEN)
 
         # 1. 폴더 목록 조회
         folders = Folder.objects.filter(parent_id=folder_id)
@@ -102,7 +127,9 @@ class FolderMove(APIView):
 
     # 폴더 이동
     def post(self, request, folder_id=None):
-        # TODO : Permission 확인
+        # Permission 확인
+        if not is_token_valid(token=request.header['Authorization'], user_id=request.data['user_id']):
+            return Response(status=status.HTTP_403_FORBIDDEN)
 
         # 폴더 불러오기
         folder = self.get_object(folder_id)
