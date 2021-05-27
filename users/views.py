@@ -13,6 +13,11 @@ from utils.cognito import *
 class SignUp(APIView):
     def post(self, request):
         try:
+            request.data['user_id']
+            request.data['user_password']
+            request.data['confirm_user_password']
+            request.data['user_email']
+            
             # Cognito를 통한 회원가입
             cog = Cognito()
             response = cog.sign_up(
@@ -25,10 +30,22 @@ class SignUp(APIView):
             if(request.data['user_email'] == ''):
                 return Response(status=status.HTTP_400_BAD_REQUEST)
 
+            # 비밀번호 확인 다를 경우
+            if(request.data['user_password']!=request.data['confirm_user_password']):
+                return Response(status=status.HTTP_400_BAD_REQUEST)
+
+            # Cognito를 통한 회원가입
+            cog = Cognito()
+            response = cog.sign_up(
+                request.data['user_id'],
+                request.data['user_password'],
+                [{'Name': 'email', 'Value': request.data['user_email']}, ]
+            )
+
             # TODO : DB에 User 정보 저장 (Collection ID)
             serializers = UserSerializer(data={
                 'user_id': request.data['user_id'],
-                'collection_id': ''
+                'collection_id': 'col_'+request.data['user_id']
             })
             if serializers.is_valid():
                 serializers.save()
