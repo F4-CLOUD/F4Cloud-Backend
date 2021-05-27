@@ -1,4 +1,4 @@
-import botocore.exceptions
+from botocore.exceptions import ClientError
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
@@ -15,7 +15,7 @@ class SignUp(APIView):
         try:
             # Cognito를 통한 회원가입
             cog = Cognito()
-            cog.sign_up(
+            response = cog.sign_up(
                 request.data['user_id'],
                 request.data['user_password'],
                 [{'Name': 'email', 'Value': request.data['user_email']}, ]
@@ -38,17 +38,8 @@ class SignUp(APIView):
             # 이메일로 verification 전송됨
             return Response(status=status.HTTP_201_CREATED)
 
-        # 이미 존재하는 Id
-        except botocore.exceptions.UsernameExistsException:
-            return Response("ID already exist", status=status.HTTP_409_CONFLICT)
-
-        # 비밀번호는 최소 6자리, 특수문자, 대문자, 소문자, 숫자를 포함해야 함
-        except botocore.exceptions.InvalidPasswordException:
-            return Response("Invalid password", status=status.HTTP_400_BAD_REQUEST)
-
-        # 비밀번호는 최소 6자리, 특수문자, 대문자, 소문자, 숫자를 포함해야 함
-        except botocore.exceptions.ParamValidationError:
-            return Response("Invalid password", status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            return Response(str(e), status=status.HTTP_400_BAD_REQUEST)
 
 
 # 회원가입 확인
@@ -76,12 +67,8 @@ class ConfirmSignUp(APIView):
 
             return Response(response, status=status.HTTP_200_OK)
 
-        # 만료된 코드
-        except botocore.exceptions.ExpiredCodeException:
-            return Response("Expired Code", status=status.HTTP_400_BAD_REQUEST)
-        # 올바르지 않은 코드
-        except botocore.exceptions.CodeMismatchException:
-            return Response("Wrong Code", status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            return Response(str(e), status=status.HTTP_400_BAD_REQUEST)
 
 
 # 로그인
@@ -99,9 +86,9 @@ class SignIn(APIView):
             # TODO : 사용자의 Root 폴더 ID, 휴지통 ID 불러오기
 
             return Response(user_token, status=status.HTTP_200_OK)
-        # 아이디 혹은 비밀번호가 일치하지 않음
-        except botocore.exceptions.NotAuthorizedException:
-            return Response("ID or Password mismatch", status=status.HTTP_400_BAD_REQUEST)
+
+        except Exception as e:
+            return Response(str(e), status=status.HTTP_400_BAD_REQUEST)
 
 
 # 로그아웃
@@ -116,9 +103,8 @@ class SignOut(APIView):
 
             return Response(response, status=status.HTTP_200_OK)
 
-        # 로그인 상태가 아닐 시
-        except botocore.exceptions.NotAuthorizedException:
-            return Response("Not Sign in now", status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            return Response(str(e), status=status.HTTP_400_BAD_REQUEST)
 
 
 # 비밀번호 변경
@@ -134,25 +120,8 @@ class ChangePassword(APIView):
 
             return Response(response, status=status.HTTP_200_OK)
 
-        # 현재 비밀번호가 일치하지 않음
-        except botocore.exceptions.NotAuthorizedException:
-            return Response("Current Password mismatch", status=status.HTTP_400_BAD_REQUEST)
-
-        # 비밀번호는 최소 6자리, 특수문자, 대문자, 소문자, 숫자를 포함해야 함
-        except botocore.exceptions.InvalidPasswordException:
-            return Response("Invalid New Password", status=status.HTTP_400_BAD_REQUEST)
-
-        # 비밀번호는 최소 6자리, 특수문자, 대문자, 소문자, 숫자를 포함해야 함
-        except botocore.exceptions.ParamValidationError:
-            return Response("Invalid New Password", status=status.HTTP_400_BAD_REQUEST)
-
-        # 횟수 초과
-        except botocore.exceptions.LimitExceededException:
-            return Response("Count Over", status=status.HTTP_403_FORBIDDEN)
-
-        # 유효하지 않은 ACCESSTOKEN 로그인 필요
-        except botocore.exceptions.InvalidParameterException:
-            return Response("Invalid Tokken", status=status.HTTP_401_UNAUTHORIZED)
+        except Exception as e:
+            return Response(str(e), status=status.HTTP_400_BAD_REQUEST)
 
 
 # 비밀번호 잊어버렸을 때
@@ -165,8 +134,9 @@ class ForgotPassword(APIView):
             )
 
             return Response(response, status=status.HTTP_200_OK)
-        except botocore.exceptions as e:
-            return Response(e, status=status.HTTP_400_BAD_REQUEST)
+
+        except Exception as e:
+            return Response(str(e), status=status.HTTP_400_BAD_REQUEST)
 
 
 # 비밀번호 잊어버린 거 Confirm
@@ -182,15 +152,8 @@ class ConfirmForgotPassword(APIView):
 
             return Response(response, status=status.HTTP_200_OK)
 
-        # 재시도 필요
-        except botocore.exceptions.ParamValidationError:
-            return Response("Retry", status=status.HTTP_401_UNAUTHORIZED)
-        # 만료된 코드
-        except botocore.exceptions.ExpiredCodeException:
-            return Response("Expired Code", status=status.HTTP_400_BAD_REQUEST)
-        # 올바르지 않은 코드
-        except botocore.exceptions.CodeMismatchException:
-            return Response("Wrong Code", status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            return Response(str(e), status=status.HTTP_400_BAD_REQUEST)
 
 
 # 사용자 삭제 탈퇴
@@ -216,4 +179,4 @@ class DeleteUser(APIView):
 
         # ACCESS_TOKEN 필요 로그인 필요
         except Exception as e:
-            return Response(e, status=status.HTTP_401_UNAUTHORIZED)
+            return Response(str(e), status=status.HTTP_401_UNAUTHORIZED)

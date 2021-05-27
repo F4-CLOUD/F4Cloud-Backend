@@ -6,16 +6,10 @@ from .models import User
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ('user_id', 'user_password', 'user_email',)
+        fields = ('user_id', 'collection_id',)
 
 
-class UserWithoutPwSerializer(serializers.ModelSerializer):
+class UserOnlySerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ('user_id', 'user_email',)
-
-
-class PasswordSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = User
-        fields = ('user_password',)
+        fields = ('user_id',)

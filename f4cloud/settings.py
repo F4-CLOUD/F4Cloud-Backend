@@ -61,6 +61,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'django_cognito_jwt',
     'rest_framework',
     'users.apps.UsersConfig',
     'files.apps.FilesConfig',
