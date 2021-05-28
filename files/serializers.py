@@ -27,3 +27,9 @@ class FileHashTagSerializer(serializers.ModelSerializer):
     class Meta:
         model = File
         fields = ('hash_tag', )
+
+
+class FileGroupSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = File
+        fields = ('s3_url', 'file_id', 'user_id', 'name', )

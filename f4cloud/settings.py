@@ -67,7 +67,7 @@ INSTALLED_APPS = [
     'users.apps.UsersConfig',
     'files.apps.FilesConfig',
     'folders.apps.FoldersConfig',
-    'poeple.apps.PeopleConfig',
+    'people.apps.PeopleConfig',
 ]
 
 MIDDLEWARE = [
