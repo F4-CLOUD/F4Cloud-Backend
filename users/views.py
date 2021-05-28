@@ -9,7 +9,7 @@ from .models import User
 from utils.cognito import *
 from folders.models import Folder
 from folders.serializers import FolderSerializer
-from utils.s3 import get_s3_client, upload_folder, delete_folder
+from utils.s3 import get_s3_client, upload_folder, delete_folder_file
 
 
 # 회원가입 요청
@@ -228,8 +228,9 @@ class DeleteUser(APIView):
                 request.headers['Secret-Key'],
                 request.headers['Session-Token'],
             )
-            delete_folder(s3_client, '/'.join([request.data['user_id'], '']))
-            delete_folder(
+            delete_folder_file(
+                s3_client, '/'.join([request.data['user_id'], '']))
+            delete_folder_file(
                 s3_client, '/'.join(['trash', request.data['user_id'], ''])
             )
 

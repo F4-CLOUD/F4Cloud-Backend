@@ -18,4 +18,4 @@ class FolderNameSerializer(serializers.ModelSerializer):
 class FolderMoveSerializer(serializers.ModelSerializer):
     class Meta:
         model = Folder
-        fields = ('parent_id',)
+        fields = ('parent_id', 'path', )

@@ -25,6 +25,18 @@ def get_s3_url(path):
     )
 
 
+# 파일 및 폴더 삭제
+def delete_folder_file(s3_client, target):
+    try:
+        response = s3_client.delete_object(Bucket=S3_BUCKET_ID, Key=target)
+        return response
+    except Exception as e:
+        print('Error on line {}'.format(
+            sys.exc_info()[-1].tb_lineno), type(e).__name__, e
+        )
+        raise Exception('Delete folder Fail', e)
+
+
 # ----------------------------
 # 폴더 관련 모듈
 # ----------------------------
@@ -44,18 +56,6 @@ def upload_folder(s3_client, folder):
         raise Exception('Upload Folder Fail', e)
 
 
-# 폴더 삭제
-def delete_folder(s3_client, target):
-    try:
-        response = s3_client.delete_object(Bucket=S3_BUCKET_ID, Key=target)
-        return response
-    except Exception as e:
-        print('Error on line {}'.format(
-            sys.exc_info()[-1].tb_lineno), type(e).__name__, e
-        )
-        raise Exception('Delete folder Fail', e)
-
-
 # 폴더 이름 변경 혹은 이동
 def rename_move_folder(s3_client, target, new_key):
     try:
@@ -66,13 +66,14 @@ def rename_move_folder(s3_client, target, new_key):
         # 내부 컨텐츠 이동
         contents = s3_client.list_objects(
             Bucket=S3_BUCKET_ID, Prefix=target, Delimiter="/")
-        for content in contents['CommonPrefixes']:
-            old_path = content['Prefix']
-            new_path = new_key + old_path.replace(contents['Prefix'], '')
-            s3_client.copy_object(Bucket=S3_BUCKET_ID, Key=new_path, CopySource={
-                'Bucket': S3_BUCKET_ID, 'Key': old_path
-            }, ACL='public-read')
-            s3_client.delete_object(Bucket=S3_BUCKET_ID, Key=old_path)
+        if 'CommonPrefixes' in contents:
+            for content in contents['CommonPrefixes']:
+                old_path = content['Prefix']
+                new_path = new_key + old_path.replace(contents['Prefix'], '')
+                s3_client.copy_object(Bucket=S3_BUCKET_ID, Key=new_path, CopySource={
+                    'Bucket': S3_BUCKET_ID, 'Key': old_path
+                }, ACL='public-read')
+                s3_client.delete_object(Bucket=S3_BUCKET_ID, Key=old_path)
 
         s3_client.delete_object(Bucket=S3_BUCKET_ID, Key=target)
     except Exception as e:
@@ -116,18 +117,6 @@ def upload_file(s3_client, file, file_name):
             sys.exc_info()[-1].tb_lineno), type(e).__name__, e
         )
         raise Exception('Upload file Fail', e)
-
-
-# 파일 삭제
-def delete_file(s3_client, file_name):
-    try:
-        response = s3_client.delete_object(Bucket=S3_BUCKET_ID, Key=file_name)
-        return response
-    except Exception as e:
-        print('Error on line {}'.format(
-            sys.exc_info()[-1].tb_lineno), type(e).__name__, e
-        )
-        raise Exception('Delete file Fail', e)
 
 
 # 파일 이름 변경 혹은 이동

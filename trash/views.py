@@ -1,14 +1,12 @@
-import json
-
 from rest_framework.views import APIView
-from rest_framework import serializers, status
+from rest_framework import status
 from rest_framework.generics import get_object_or_404
 from rest_framework.response import Response
 
 from files.models import File
-from files.serializers import FileSerializer, FileMoveSerializer
+from files.serializers import FileMoveSerializer
 from folders.models import Folder
-from folders.serializers import FolderSerializer, FolderMoveSerializer
+from folders.serializers import FolderMoveSerializer
 from utils.s3 import *
 from utils.cognito import is_token_valid
 
@@ -49,9 +47,11 @@ class Trash(APIView):
         # 복원할 위치 확인
         location = request.data['loc']
         restore_loc = self.get_object_folder(request.data['loc'])
-        new_path = '{0}{1}/'.format(
-            restore_loc.path, restore_loc.name
-        )
+        new_path = ''
+        if restore_loc.parent_id:
+            new_path = '{0}{1}/'.format(
+                restore_loc.path, restore_loc.name
+            )
 
         # S3 Client 생성
         s3_client = get_s3_client(
@@ -98,7 +98,10 @@ class Trash(APIView):
         for folder_id in request.data['folders']:
             # 폴더 불러오기
             folder = self.get_object_folder(folder_id=folder_id)
-            folders.append(folder)
+
+            print('{0}{1}/'.format(
+                folder.path, folder.name
+            ))
 
             # S3 Key 이름 변경
             rename_move_folder(s3_client, '{0}{1}/'.format(
@@ -107,13 +110,14 @@ class Trash(APIView):
                 folder.user_id.user_id, new_path, folder.name
             ))
 
-        # DB 처리
-        folder_serializer = FolderMoveSerializer(
-            folders,
-            {'parent_id': location, 'path': new_path}
-        )
-        if folder_serializer.is_valid():
-            folder_serializer.save()
+            # DB 처리
+            folder_serializer = FolderMoveSerializer(
+                folder,
+                {'parent_id': location, 'path': new_path},
+            )
+            if folder_serializer.is_valid():
+                folder_serializer.save()
+            folders.append(folder_serializer.data)
 
         return Response({
             "files": files,
@@ -122,13 +126,22 @@ class Trash(APIView):
 
     # 휴지통에서 선택 항목 삭제
     def delete(self, request):
-        # TODO : Permission 확인
+        # Permission 확인
+        if not is_token_valid(token=request.headers['ID-Token'], user_id=request.data['user_id']):
+            return Response(status=status.HTTP_403_FORBIDDEN)
 
         # 휴지통 ID 확인
-        trash_id = request.data['trash_id']
+        trash_id = request.data['trash']
 
         # 삭제 방식 확인
         target = request.data['target']
+
+        # S3 Client 생성
+        s3_client = get_s3_client(
+            request.headers['Access-Key-Id'],
+            request.headers['Secret-Key'],
+            request.headers['Session-Token'],
+        )
 
         # 휴지통 전체 삭제
         if target == 'all':
@@ -148,16 +161,38 @@ class Trash(APIView):
             if folders:
                 folders.delete()
 
+            # S3 휴지통 밀어버리기!
+            clear_folder(
+                s3_client, 'trash/{0}/'.format(request.data['user_id'])
+            )
+
             return Response("OK", content_type="application/json", status=status.HTTP_200_OK)
 
         # 휴지통에서 선택 항목 삭제
         elif target == 'select':
+
             # 1. 파일 삭제
             for file_id in request.data['files']:
-                self.get_object_file(file_id=file_id).delete()
+                file = self.get_object_file(file_id=file_id)
+
+                delete_folder_file(
+                    s3_client, 'trash/{0}/{1}'.format(
+                        request.data['user_id'], file.name
+                    )
+                )
+
+                file.delete(s3_client)
 
             # 2. 폴더 삭제
             for folder_id in request.data['folders']:
-                self.get_object_folder(folder_id=folder_id).delete()
+                folder = self.get_object_folder(folder_id=folder_id)
+
+                delete_folder_file(
+                    s3_client, 'trash/{0}/{1}/'.format(
+                        request.data['user_id'], folder.name
+                    )
+                )
+
+                folder.delete()
 
             return Response("OK", content_type="application/json", status=status.HTTP_200_OK)
