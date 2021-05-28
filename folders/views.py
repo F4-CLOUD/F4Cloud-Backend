@@ -115,7 +115,12 @@ class FolderDetail(APIView):
         ))
 
         # Serializer와 매칭
-        serializers = FolderMoveSerializer(folder, {'parent_id': trash})
+        serializers = FolderMoveSerializer(folder, {
+            'parent_id': trash,
+            'path': '{0}/{1}/'.format(
+                'trash', folder.user_id.user_id
+            )
+        })
 
         if serializers.is_valid():
             serializers.save()
@@ -159,7 +164,7 @@ class FolderMove(APIView):
 
         # 폴더 불러오기
         folder = self.get_object(folder_id)
-        parent = self.get_object(request.data['location'])
+        parent = self.get_object(request.data['loc'])
 
         # S3 내의 폴더 Trash 폴더로 이동
         # S3 Client 생성
@@ -181,7 +186,10 @@ class FolderMove(APIView):
         # Serializer와 매칭
         serializers = FolderMoveSerializer(
             folder, {
-                'parent_id': request.data['location'],
+                'parent_id': request.data['loc'],
+                'path': '{0}{1}/'.format(
+                    parent.path, parent.name
+                )
             }
         )
 

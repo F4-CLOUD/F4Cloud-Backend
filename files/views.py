@@ -233,7 +233,9 @@ class FileMove(APIView):
         ))
 
         # S3 Address 처리
-        s3_url = get_s3_url(new_path, file.name)
+        s3_url = get_s3_url('{0}/{1}'.format(
+            file.user_id.user_id, new_path
+        ), file.name)
 
         # ------------------------
         # DB 처리

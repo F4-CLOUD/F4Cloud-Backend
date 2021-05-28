@@ -18,11 +18,10 @@ def get_s3_client(access_key_id, secret_access_key, session_token=None):
 
 
 # S3 URL 생성
-def get_s3_url(path, name):
-    return 'https://{0}.s3.amazonaws.com/{1}{2}'.format(
+def get_s3_url(path):
+    return 'https://{0}.s3.amazonaws.com/{1}'.format(
         S3_BUCKET_ID,
-        path,
-        name
+        path
     )
 
 

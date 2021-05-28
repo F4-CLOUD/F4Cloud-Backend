@@ -9,6 +9,8 @@ from files.models import File
 from files.serializers import FileSerializer, FileMoveSerializer
 from folders.models import Folder
 from folders.serializers import FolderSerializer, FolderMoveSerializer
+from utils.s3 import *
+from utils.cognito import is_token_valid
 
 
 class Trash(APIView):
@@ -40,19 +42,51 @@ class Trash(APIView):
 
     # 휴지통에서 복원
     def post(self, request):
-        # TODO : Permission 확인
+        # Permission 확인
+        if not is_token_valid(token=request.headers['ID-Token'], user_id=request.data['user_id']):
+            return Response(status=status.HTTP_403_FORBIDDEN)
 
         # 복원할 위치 확인
-        location = request.data['location']
+        location = request.data['loc']
+        restore_loc = self.get_object_folder(request.data['loc'])
+        new_path = '{0}{1}/'.format(
+            restore_loc.path, restore_loc.name
+        )
+
+        # S3 Client 생성
+        s3_client = get_s3_client(
+            request.headers['Access-Key-Id'],
+            request.headers['Secret-Key'],
+            request.headers['Session-Token'],
+        )
 
         # 휴지통 복원
         # 1. 파일 복원
         files = []
         self.validate_ids(id_list=request.data['files'], type='file')
         for file_id in request.data['files']:
+            # 파일 불러오기
+            file = self.get_object_file(file_id=file_id)
+            files.append(file)
+
+            rename_move_file(s3_client, '{0}{1}'.format(
+                file.path, file.name
+            ), '{0}/{1}{2}'.format(
+                file.user_id.user_id, new_path, file.name
+            ))
+
+            # S3 Address 처리
+            s3_url = get_s3_url('{0}/{1}{2}'.format(
+                file.user_id.user_id, new_path, file.name
+            ))
+
+            # DB 처리
             obj = FileMoveSerializer(
-                self.get_object_file(file_id=file_id),
-                {'folder_id': location, }
+                file, {
+                    'folder_id': restore_loc.folder_id,
+                    'path': new_path,
+                    's3_url': s3_url,
+                }
             )
             if obj.is_valid():
                 obj.save()
@@ -62,17 +96,28 @@ class Trash(APIView):
         folders = []
         self.validate_ids(id_list=request.data['folders'], type='folder')
         for folder_id in request.data['folders']:
-            obj = FolderMoveSerializer(
-                self.get_object_folder(folder_id=folder_id),
-                {'parent_id': location, }
-            )
-            if obj.is_valid():
-                obj.save()
-            folders.append(obj.data)
+            # 폴더 불러오기
+            folder = self.get_object_folder(folder_id=folder_id)
+            folders.append(folder)
+
+            # S3 Key 이름 변경
+            rename_move_folder(s3_client, '{0}{1}/'.format(
+                folder.path, folder.name
+            ), '{0}/{1}{2}/'.format(
+                folder.user_id.user_id, new_path, folder.name
+            ))
+
+        # DB 처리
+        folder_serializer = FolderMoveSerializer(
+            folders,
+            {'parent_id': location, 'path': new_path}
+        )
+        if folder_serializer.is_valid():
+            folder_serializer.save()
 
         return Response({
             "files": files,
-            "folders": folders,
+            "folders": folder_serializer.data,
         }, content_type="application/json", status=status.HTTP_202_ACCEPTED)
 
     # 휴지통에서 선택 항목 삭제
