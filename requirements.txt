@@ -2,3 +2,6 @@ Django==3.2.2
 djangorestframework==3.12.4
 mysqlclient==2.0.3
 boto3==1.17.77
+django-cognito-jwt==0.0.3
+Pillow==8.2.0
+pyjwt==1.7.1
