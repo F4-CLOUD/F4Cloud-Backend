@@ -2,14 +2,7 @@ import sys
 
 import boto3
 
-from f4cloud.settings import AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, DEFAULT_REGION_NAME, S3_BUCKET_ID
-
-# S3 기존 설정
-s3client = boto3.client(
-    's3',
-    aws_access_key_id=AWS_ACCESS_KEY_ID,
-    aws_secret_access_key=AWS_SECRET_ACCESS_KEY
-)
+from f4cloud.settings import DEFAULT_REGION_NAME, S3_BUCKET_ID
 
 
 # S3 Client 생성
@@ -24,6 +17,7 @@ def get_s3_client(access_key_id, secret_access_key, session_token=None):
     return s3_client
 
 
+# S3 URL 생성
 def get_s3_url(path, name):
     return 'https://{0}.s3.amazonaws.com/{1}{2}'.format(
         S3_BUCKET_ID,
@@ -48,7 +42,7 @@ def upload_folder(s3_client, folder):
         print('Error on line {}'.format(
             sys.exc_info()[-1].tb_lineno), type(e).__name__, e
         )
-        raise Exception('Upload Folder', e)
+        raise Exception('Upload Folder Fail', e)
 
 
 # 폴더 삭제
@@ -60,7 +54,7 @@ def delete_folder(s3_client, target):
         print('Error on line {}'.format(
             sys.exc_info()[-1].tb_lineno), type(e).__name__, e
         )
-        raise Exception('Delete Folder', e)
+        raise Exception('Delete folder Fail', e)
 
 
 # 폴더 이름 변경 혹은 이동
@@ -106,28 +100,28 @@ def upload_file(s3_client, file, file_name):
         print('Error on line {}'.format(
             sys.exc_info()[-1].tb_lineno), type(e).__name__, e
         )
-        raise Exception('Upload Fail', e)
+        raise Exception('Upload file Fail', e)
 
 
 # 파일 삭제
-def delete_file(bucket, target):
+def delete_file(s3_client, file_name):
     try:
-        response = s3client.delete_object(Bucket=bucket, Key=target)
+        response = s3_client.delete_object(Bucket=S3_BUCKET_ID, Key=file_name)
         return response
     except Exception as e:
         print('Error on line {}'.format(
             sys.exc_info()[-1].tb_lineno), type(e).__name__, e
         )
-        raise Exception('Delete Fail', e)
+        raise Exception('Delete file Fail', e)
 
 
-# 파일 이름 변경
-def rename_file(bucket, target, new_name):
+# 파일 이름 변경 혹은 이동
+def rename_move_file(s3_client, file_name, new_name):
     try:
-        s3client.copy_object(Bucket=bucket, Key=new_name, CopySource={
-            'Bucket': bucket, 'Key': target
+        s3_client.copy_object(Bucket=S3_BUCKET_ID, Key=new_name, CopySource={
+            'Bucket': S3_BUCKET_ID, 'Key': file_name
         }, ACL='public-read')
-        s3client.delete_object(Bucket=bucket, Key=target)
+        s3_client.delete_object(Bucket=S3_BUCKET_ID, Key=file_name)
     except Exception as e:
         print('Error on line {}'.format(
             sys.exc_info()[-1].tb_lineno), type(e).__name__, e
@@ -136,10 +130,10 @@ def rename_file(bucket, target, new_name):
 
 
 # 파일 복사
-def copy_file(bucket, target, copy_name):
+def copy_file(s3_client, file_name, new_name):
     try:
-        s3client.copy_object(Bucket=bucket, Key=copy_name, CopySource={
-            'Bucket': bucket, 'Key': target
+        s3_client.copy_object(Bucket=S3_BUCKET_ID, Key=new_name, CopySource={
+            'Bucket': S3_BUCKET_ID, 'Key': file_name
         }, ACL='public-read')
     except Exception as e:
         print('Error on line {}'.format(
