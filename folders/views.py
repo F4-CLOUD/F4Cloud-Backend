@@ -1,3 +1,5 @@
+import datetime
+
 from rest_framework.views import APIView
 from rest_framework import status
 from rest_framework.generics import get_object_or_404
@@ -9,6 +11,7 @@ from files.models import File
 from files.serializers import FileSerializer
 from utils.s3 import *
 from utils.cognito import is_token_valid
+from trash.serializers import TrashFolderSerializer
 
 
 class FolderCreate(APIView):
@@ -124,6 +127,17 @@ class FolderDetail(APIView):
 
         if serializers.is_valid():
             serializers.save()
+
+        # 휴지통 이동 기록 생성
+        trash_serializer = TrashFolderSerializer(data={
+            'folder_id': folder_id,
+            'trashed_at': datetime.datetime.now(),
+            'expired_at': datetime.datetime.now() + datetime.timedelta(days=30),
+        })
+
+        if trash_serializer.is_valid():
+            trash_serializer.save()
+
             return Response("OK", content_type="application/json", status=status.HTTP_202_ACCEPTED)
         return Response(serializers.errors, content_type="application/json", status=status.HTTP_400_BAD_REQUEST)
 

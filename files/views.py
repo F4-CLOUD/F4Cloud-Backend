@@ -1,4 +1,4 @@
-import json
+import datetime
 
 import boto3
 from botocore import regions
@@ -12,7 +12,8 @@ from .models import File
 from folders.models import Folder
 from utils.s3 import *
 from utils.cognito import is_token_valid
-from f4cloud.settings import AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, DEFAULT_REGION_NAME, DEFAULT_CONFIG
+from trash.serializers import TrashFile, TrashFileSerializer
+from f4cloud.settings import AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, DEFAULT_REGION_NAME
 
 
 class FileCreate(APIView):
@@ -188,6 +189,16 @@ class FileDetail(APIView):
 
         if serializers.is_valid():
             serializers.save()
+
+        # 휴지통 이동 기록 생성
+        trash_serializer = TrashFileSerializer(data={
+            'file_id': file_id,
+            'trashed_at': datetime.datetime.now(),
+            'expired_at': datetime.datetime.now() + datetime.timedelta(days=30),
+        })
+        if trash_serializer.is_valid():
+            trash_serializer.save()
+
             return Response(serializers.data, content_type="application/json", status=status.HTTP_200_OK)
         return Response(serializers.errors, content_type="application/json", status=status.HTTP_400_BAD_REQUEST)
 

@@ -1,21 +1,14 @@
 from rest_framework import serializers
-from .models import Folder
+from .models import *
 
 
-class FolderSerializer(serializers.ModelSerializer):
+class TrashFolderSerializer(serializers.ModelSerializer):
     class Meta:
-        model = Folder
-        fields = ('folder_id', 'parent_id', 'name',
-                  'created_at', 'modified_at')
+        model = TrashFolder
+        fields = ('folder_id', 'trashed_at', 'expired_at', )
 
 
-class FolderNameSerializer(serializers.ModelSerializer):
+class TrashFileSerializer(serializers.ModelSerializer):
     class Meta:
-        model = Folder
-        fields = ('name',)
-
-
-class FolderMoveSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Folder
-        fields = ('parent_id',)
+        model = TrashFile
+        fields = ('file_id', 'trashed_at', 'expired_at', )
