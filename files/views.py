@@ -1,5 +1,6 @@
 import json
 
+import boto3
 from rest_framework.views import APIView
 from rest_framework.generics import get_object_or_404
 from rest_framework import status
@@ -319,3 +320,98 @@ class FileCopy(APIView):
             # 완료 응답
             return Response(new_serializers.data, content_type="application/json", status=status.HTTP_202_ACCEPTED)
         return Response(new_serializers.errors, content_type="application/json", status=status.HTTP_400_BAD_REQUEST)
+
+
+class FileHashTag(APIView):
+    # 파일 불러오기
+    def get_object(self, **kwargs):
+        file = get_object_or_404(File, **kwargs)
+        return file
+
+    def post(self, request):
+        try:
+            data = request.data
+            file_id = data['fileId']
+            user_id = data['userId']
+
+            s3_address = File.objects.values('s3_url').distinct().filter(
+                file_id=file_id, user_id=user_id)
+            s3_address = s3_address[0]['s3_url']
+            client = boto3.client('rekognition')
+
+            # file_address format : object URL
+            proc = s3_address[8:]
+            bucket = proc[:proc.find('.')]
+            file_key = proc[proc.find('/') + 1:]
+
+            # print(bucket, file_path)
+
+            # if file_path.find('/') != -1:
+            #     file_name = file_path
+            #     while (file_name.find('/') != -1):
+            #         file_name = file_name[file_name.find('/') + 1:]
+            # else:
+            #     file_name = file_path
+
+            # if file_name.find('/') != -1:
+            #     file_name = file_name[file_name.find('/') + 1:]
+
+            # Use Amazon rekognition Object detection
+            response = client.detect_labels(
+                Image={'S3Object': {'Bucket': bucket, 'Name': file_key}}, MaxLabels=10)
+            obj_list = list()
+            translate = boto3.client(
+                service_name='translate', region_name='us-east-1', use_ssl=True
+            )
+
+            # Set Max
+            max = 2
+            threshold = 95.0
+            for label in response['Labels']:
+                max -= 1
+                #print("Label: " + label['Name'])
+                #print("Confidence: " + str(label['Confidence']))
+                if(max == -1):
+                    break
+                if(label['Confidence'] > threshold):
+                    print(label['Name'])
+                    print("Confidence: " + str(label['Confidence']))
+                    result = translate.translate_text(Text=label['Name'],
+                                                      SourceLanguageCode="en", TargetLanguageCode="ko")
+                    tag = str(result.get('TranslatedText'))
+                    tag = tag.replace(' ', '_')
+                    obj_list.append(tag)
+            print(obj_list)
+            if(len(obj_list) == 0):
+                return Response({'recommend': ''})
+            recommend = '#'
+            recommend += ' #'.join(obj_list)
+            msg = {'recommend': recommend}
+
+            return Response(msg, status=status.HTTP_200_OK)
+        except Exception as e:
+            msg = {'msg': str(e)}
+            print(msg)
+            return Response(msg, status=status.HTTP_400_BAD_REQUEST)
+
+    def put(self, request):
+        if request.method == 'PUT':
+            try:
+                data = request.data
+                print(data)
+                file_id = data['fileId']
+                user_id = data['userId']
+                hashtag = data['hashtag']
+                item = File.objects.filter(user_id=user_id, file_id=file_id)
+                item.update(hashtag=hashtag)
+                res = File.objects.values('hashtag').distinct().filter(
+                    user_id=user_id, file_id=file_id)
+                res = res[0]['hashtag']
+                msg = {'hashtag': res}
+                print(msg)
+                return Response(msg, status=status.HTTP_200_OK)
+
+            except Exception as e:
+                msg = {'msg': str(e)}
+                print(msg)
+                return Response(msg, status=status.HTTP_400_BAD_REQUEST)
