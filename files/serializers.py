@@ -21,3 +21,9 @@ class FileMoveSerializer(serializers.ModelSerializer):
     class Meta:
         model = File
         fields = ('s3_url', 'folder_id', 'path')
+
+
+class FileHashTagSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = File
+        fields = ('hash_tag', )
