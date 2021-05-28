@@ -6,10 +6,8 @@ class FaceInfo(models.Model):
         auto_created=True, primary_key=True, serialize=True, verbose_name='ID')
     user_id = models.ForeignKey(
         'users.User', on_delete=models.CASCADE, db_column='user_id')
-    file_id = models.CharField(max_length=255)
     file_id = models.ForeignKey(
         'files.File', on_delete=models.CASCADE, db_column='file_id')
-    group_id = models.CharField(max_length=255, blank=True, null=True)
     group_id = models.ForeignKey(
         'GroupInfo', on_delete=models.CASCADE, db_column='group_id')
     face_id = models.CharField(max_length=255, blank=True, null=True)
