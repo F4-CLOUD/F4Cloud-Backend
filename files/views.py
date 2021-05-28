@@ -7,6 +7,7 @@ from rest_framework.response import Response
 
 from .serializers import *
 from .models import File
+from folders.models import Folder
 from utils.s3 import *
 from utils.cognito import is_token_valid
 
@@ -29,15 +30,18 @@ class FileCreate(APIView):
         )
 
         # S3에 업로드
-        upload_file(s3_client, file, '{0}/{1}/{2}'.format(
+        upload_file(s3_client, file, '{0}/{1}{2}'.format(
             request.data['user_id'], request.data['path'], request.data['name']
         ))
 
         # S3 Address 처리
-        s3_url = get_s3_url('{0}/{1}/'.format(
+        s3_url = get_s3_url('{0}/{1}'.format(
             request.data['user_id'], request.data['path']
         ), request.data['name'])
 
+        # ------------------------
+        # DB 처리
+        # ------------------------
         # DB에 데이터 저장
         serializers = FileSerializer(data={
             'folder_id': request.data['folder_id'],
@@ -94,6 +98,9 @@ class FileDetail(APIView):
         # 파일 불러오기
         file = self.get_object(file_id)
 
+        # ------------------------
+        # S3 처리
+        # ------------------------
         # S3 Client 생성
         s3_client = get_s3_client(
             request.headers['Access-Key-Id'],
@@ -102,17 +109,19 @@ class FileDetail(APIView):
         )
 
         # S3 파일 Key 수정
-        rename_move_file(s3_client, '{0}/{1}/{2}'.format(
+        new_path = '{0}/{1}'.format(
+            file.user_id.user_id, file.path
+        )
+        rename_move_file(s3_client, '{0}/{1}{2}'.format(
             file.user_id.user_id, file.path, file.name
-        ), '{0}/{1}/{2}'.format(
-            file.user_id.user_id, file.path, request.data['new_name']
-        ))
+        ), new_path + request.data['new_name'])
 
         # S3 Address 처리
-        s3_url = get_s3_url('{0}/{1}/'.format(
-            file.user_id.user_id, file.path
-        ), request.data['new_name'])
+        s3_url = get_s3_url(new_path, request.data['new_name'])
 
+        # ------------------------
+        # DB 처리
+        # ------------------------
         # 파일 이름 수정
         serializers = FileNameSerializer(
             file, {
@@ -138,9 +147,37 @@ class FileDetail(APIView):
         # 파일 불러오기
         file = self.get_object(file_id)
 
+        # ------------------------
+        # S3 처리
+        # ------------------------
+        # S3 Client 생성
+        s3_client = get_s3_client(
+            request.headers['Access-Key-Id'],
+            request.headers['Secret-Key'],
+            request.headers['Session-Token'],
+        )
+
+        # S3 Key 이름 변경
+        new_path = '{0}/{1}/'.format(
+            'trash', file.user_id.user_id
+        )
+        rename_move_file(s3_client, '{0}/{1}{2}'.format(
+            file.user_id.user_id, file.path, file.name
+        ), new_path + file.name)
+
+        # S3 Address 처리
+        s3_url = get_s3_url(new_path, file.name)
+
+        # ------------------------
+        # DB 처리
+        # ------------------------
         # Folder 위치 수정
         serializers = FileMoveSerializer(
-            file, {'folder_id': trash, }
+            file, {
+                'folder_id': trash,
+                'path': new_path,
+                's3_url': s3_url,
+            }
         )
 
         if serializers.is_valid():
@@ -155,6 +192,11 @@ class FileMove(APIView):
         file = get_object_or_404(File, file_id=file_id)
         return file
 
+    # 폴더 불러오기
+    def get_folder(self, folder_id):
+        folder = get_object_or_404(Folder, folder_id=folder_id)
+        return folder
+
     # 파일 이동
     def post(self, request, file_id):
         # Permission 확인
@@ -164,24 +206,39 @@ class FileMove(APIView):
         # 파일 불러오기
         file = self.get_object(file_id)
 
-        # S3 파일 Key 수정
-        rename_file(
-            request.data['bucket'], '{0}_{1}'.format(
-                file.folder_id, file.name
-            ), '{0}_{1}'.format(
-                request.data['location'], file.name
-            )
+        # 폴더 정보 불러오기
+        folder = self.get_folder(request.data['loc'])
+
+        # ------------------------
+        # S3 처리
+        # ------------------------
+        # S3 Client 생성
+        s3_client = get_s3_client(
+            request.headers['Access-Key-Id'],
+            request.headers['Secret-Key'],
+            request.headers['Session-Token'],
         )
 
+        # S3 Key 이름 변경
+        new_path = '{0}/{1}{2}/'.format(
+            folder.user_id.user_id, folder.path, folder.name
+        )
+        rename_move_file(s3_client, '{0}/{1}{2}'.format(
+            file.user_id.user_id, file.path, file.name
+        ), new_path + file.name)
+
+        # S3 Address 처리
+        s3_url = get_s3_url(new_path, file.name)
+
+        # ------------------------
+        # DB 처리
+        # ------------------------
         # Folder 위치 수정
         serializers = FileMoveSerializer(
             file, {
-                's3_address': 'https://{0}.s3.amazonaws.com/{1}'.format(
-                    request.data['bucket'], '{0}_{1}'.format(
-                        request.data['location'], file.name
-                    )
-                ),
-                'folder_id': request.data['location'],
+                'folder_id': folder.folder_id,
+                'path': new_path,
+                's3_url': s3_url,
             }
         )
 
@@ -209,7 +266,6 @@ class FileCopy(APIView):
 
         # 파일 이름 수정
         file_name = serializers.data['name'].split('.')
-        print(file_name)
         if len(file_name) >= 2:
             extension = file_name.pop()
             filename = ''.join(file_name + ["_copy"])
