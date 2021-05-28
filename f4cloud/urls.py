@@ -22,4 +22,5 @@ urlpatterns = [
     path('folders/', include('folders.urls')),
     path('files/', include('files.urls')),
     path('trash/', include('trash.urls')),
+    path('people/', include('people.urls')),
 ]
