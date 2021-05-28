@@ -81,10 +81,9 @@ class FileDetail(APIView):
 
         # 파일 정보 확인
         file = self.get_object(file_id)
-        serializers = FileSerializer(file)
 
         # 완료 응답
-        return Response(serializers.data['s3_address'], content_type="application/json", status=status.HTTP_202_ACCEPTED)
+        return Response(file.s3_url, content_type="application/json", status=status.HTTP_202_ACCEPTED)
 
     # 파일 이름 변경
     def put(self, request, file_id):
@@ -95,23 +94,29 @@ class FileDetail(APIView):
         # 파일 불러오기
         file = self.get_object(file_id)
 
-        # S3 파일 Key 수정
-        rename_file(
-            request.data['bucket'], '{0}_{1}'.format(
-                file.folder_id, file.name
-            ), '{0}_{1}'.format(
-                file.folder_id, request.data['new_name']
-            )
+        # S3 Client 생성
+        s3_client = get_s3_client(
+            request.headers['Access-Key-Id'],
+            request.headers['Secret-Key'],
+            request.headers['Session-Token'],
         )
+
+        # S3 파일 Key 수정
+        rename_move_file(s3_client, '{0}/{1}/{2}'.format(
+            file.user_id.user_id, file.path, file.name
+        ), '{0}/{1}/{2}'.format(
+            file.user_id.user_id, file.path, request.data['new_name']
+        ))
+
+        # S3 Address 처리
+        s3_url = get_s3_url('{0}/{1}/'.format(
+            file.user_id.user_id, file.path
+        ), request.data['new_name'])
 
         # 파일 이름 수정
         serializers = FileNameSerializer(
             file, {
-                's3_address': 'https://{0}.s3.amazonaws.com/{1}'.format(
-                    request.data['bucket'], '{0}_{1}'.format(
-                        file.folder_id, request.data['new_name']
-                    )
-                ),
+                's3_url': s3_url,
                 'name': request.data['new_name'],
             }
         )
