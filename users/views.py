@@ -48,12 +48,12 @@ class SignUp(APIView):
             # DB에 User의 Root 폴더, Trash 폴더 생성
             serializers = FolderSerializer(data=[
                 {
-                    'user': request.data['user_id'],
+                    'user_id': request.data['user_id'],
                     'name': request.data['user_id'],
                     'path': '',
                 },
                 {
-                    'user': request.data['user_id'],
+                    'user_id': request.data['user_id'],
                     'name': request.data['user_id'],
                     'path': 'trash/',
                 }

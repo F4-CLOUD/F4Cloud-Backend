@@ -15,6 +15,7 @@ from .serializers import *
 from files.models import File
 from users.models import User
 from files.serializers import FileGroupSerializer
+from utils.cognito import is_token_valid
 from f4cloud.settings import AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, DEFAULT_REGION_NAME
 
 
@@ -31,6 +32,10 @@ def get_object_group(**kwargs):
 class collections(APIView):
     def post(self, request):
         if request.method == 'POST':
+            # Permission 확인
+            if not is_token_valid(token=request.headers['ID-Token'], user_id=request.data['user_id']):
+                return Response(status=status.HTTP_403_FORBIDDEN)
+
             try:
                 data = request.data
                 user_id = data['user_id']
@@ -53,6 +58,10 @@ class collections(APIView):
 
     def delete(self, request):
         if request.method == "DELETE":
+            # Permission 확인
+            if not is_token_valid(token=request.headers['ID-Token'], user_id=request.data['user_id']):
+                return Response(status=status.HTTP_403_FORBIDDEN)
+
             try:
                 data = request.data
                 user_id = data['userId']
@@ -76,6 +85,10 @@ class collections(APIView):
 
 class faces(APIView):
     def post(self, request):
+        # Permission 확인
+        if not is_token_valid(token=request.headers['ID-Token'], user_id=request.data['user_id']):
+            return Response(status=status.HTTP_403_FORBIDDEN)
+
         try:
             data = request.data
             print(data)
@@ -320,6 +333,10 @@ class faces(APIView):
         return Response(msg, status=status.HTTP_200_OK)
 
     def delete(self, request):
+        # Permission 확인
+        if not is_token_valid(token=request.headers['ID-Token'], user_id=request.data['user_id']):
+            return Response(status=status.HTTP_403_FORBIDDEN)
+
         try:
             data = request.data
             file_id = data['file_id']
@@ -391,6 +408,10 @@ class faces(APIView):
 class groups(APIView):
     def get(self, request):
         if request.method == 'GET':
+            # Permission 확인
+            if not is_token_valid(token=request.headers['ID-Token'], user_id=request.data['user_id']):
+                return Response(status=status.HTTP_403_FORBIDDEN)
+
             try:
                 user_id = request.GET['user_id']
                 res = GroupInfo.objects.filter(user_id=user_id)
@@ -403,6 +424,10 @@ class groups(APIView):
 
     def put(self, request):
         if request.method == 'PUT':
+            # Permission 확인
+            if not is_token_valid(token=request.headers['ID-Token'], user_id=request.data['user_id']):
+                return Response(status=status.HTTP_403_FORBIDDEN)
+
             try:
                 data = request.data
                 group_id = data['group_id']
@@ -421,6 +446,10 @@ class groups(APIView):
 class group_detail(APIView):
     def get(self, request):
         if request.method == 'GET':
+            # Permission 확인
+            if not is_token_valid(token=request.headers['ID-Token'], user_id=request.data['user_id']):
+                return Response(status=status.HTTP_403_FORBIDDEN)
+
             try:
                 user_id = request.GET['user_id']
                 group_id = request.GET['group_id']

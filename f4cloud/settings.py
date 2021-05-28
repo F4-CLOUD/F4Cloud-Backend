@@ -67,6 +67,7 @@ INSTALLED_APPS = [
     'users.apps.UsersConfig',
     'files.apps.FilesConfig',
     'folders.apps.FoldersConfig',
+    'trash.apps.TrashConfig',
     'people.apps.PeopleConfig',
     'search.apps.SearchConfig',
 ]
