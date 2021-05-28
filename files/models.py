@@ -12,7 +12,7 @@ class File(models.Model):
         'users.User', on_delete=models.CASCADE, db_column='user_id')
     name = models.CharField(max_length=255)
     s3_url = models.CharField(max_length=255)
-    path = models.CharField(max_length=255)
+    path = models.CharField(max_length=255, blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True, editable=False)
     modified_at = models.DateTimeField(auto_now=True, editable=False)
     size = models.PositiveIntegerField()

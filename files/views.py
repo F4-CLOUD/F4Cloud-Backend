@@ -115,7 +115,9 @@ class FileDetail(APIView):
         )
         rename_move_file(s3_client, '{0}/{1}{2}'.format(
             file.user_id.user_id, file.path, file.name
-        ), new_path + request.data['new_name'])
+        ), '{0}/{1}{2}'.format(
+            file.user_id.user_id, file.path, request.data['new_name']
+        ))
 
         # S3 Address 처리
         s3_url = get_s3_url(new_path, request.data['new_name'])
@@ -221,12 +223,14 @@ class FileMove(APIView):
         )
 
         # S3 Key 이름 변경
-        new_path = '{0}/{1}{2}/'.format(
-            folder.user_id.user_id, folder.path, folder.name
+        new_path = '{0}{1}/'.format(
+            folder.path, folder.name
         )
         rename_move_file(s3_client, '{0}/{1}{2}'.format(
             file.user_id.user_id, file.path, file.name
-        ), new_path + file.name)
+        ), '{0}/{1}{2}'.format(
+            file.user_id.user_id, new_path, file.name
+        ))
 
         # S3 Address 처리
         s3_url = get_s3_url(new_path, file.name)
@@ -237,7 +241,7 @@ class FileMove(APIView):
         # Folder 위치 수정
         serializers = FileMoveSerializer(
             file, {
-                'folder_id': folder.folder_id.folder_id,
+                'folder_id': folder.folder_id,
                 'path': new_path,
                 's3_url': s3_url,
             }
