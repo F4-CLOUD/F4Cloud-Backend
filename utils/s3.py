@@ -82,6 +82,22 @@ def rename_move_folder(s3_client, target, new_key):
         raise Exception('Rename or Move Folder Fail', e)
 
 
+# 폴더 비우기
+def clear_folder(s3_client, folder):
+    try:
+        # 내부 컨텐츠 이동
+        contents = s3_client.list_objects(
+            Bucket=S3_BUCKET_ID, Prefix=folder, Delimiter="/")
+        for content in contents['CommonPrefixes']:
+            old_path = content['Prefix']
+            s3_client.delete_object(Bucket=S3_BUCKET_ID, Key=old_path)
+    except Exception as e:
+        print('Error on line {}'.format(
+            sys.exc_info()[-1].tb_lineno), type(e).__name__, e
+        )
+        raise Exception('Rename or Move Folder Fail', e)
+
+
 # ----------------------------
 # 파일 관련 모듈
 # ----------------------------
