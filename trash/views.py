@@ -9,6 +9,7 @@ from folders.models import Folder
 from folders.serializers import FolderMoveSerializer
 from utils.s3 import *
 from utils.cognito import is_token_valid
+from .models import *
 
 
 class Trash(APIView):
@@ -92,6 +93,9 @@ class Trash(APIView):
                 obj.save()
             files.append(obj.data)
 
+        # 휴지통 이동 기록 삭제
+        TrashFile.objects.filter(file_id__in=request.data['files']).delete()
+
         # 2. 폴더 복원
         folders = []
         self.validate_ids(id_list=request.data['folders'], type='folder')
@@ -118,6 +122,10 @@ class Trash(APIView):
             if folder_serializer.is_valid():
                 folder_serializer.save()
             folders.append(folder_serializer.data)
+
+        # 휴지통 이동 기록 삭제
+        TrashFolder.objects.filter(
+            folder_id__in=request.data['folders']).delete()
 
         return Response({
             "files": files,
@@ -153,6 +161,9 @@ class Trash(APIView):
             if files:
                 files.delete()
 
+            # 휴지통 이동 기록 삭제
+            TrashFile.objects.all().delete()
+
             # 2. 폴더 삭제
             # 휴지통에 있는 폴더 선택
             folders = Folder.objects.filter(parent_id=trash_id)
@@ -160,6 +171,9 @@ class Trash(APIView):
             # 폴더 삭제
             if folders:
                 folders.delete()
+
+            # 휴지통 이동 기록 삭제
+            TrashFolder.objects.all().delete()
 
             # S3 휴지통 밀어버리기!
             clear_folder(
@@ -182,6 +196,9 @@ class Trash(APIView):
                 )
 
                 file.delete(s3_client)
+            # 휴지통 이동 기록 삭제
+            TrashFile.objects.filter(
+                file_id__in=request.data['files']).delete()
 
             # 2. 폴더 삭제
             for folder_id in request.data['folders']:
@@ -194,5 +211,8 @@ class Trash(APIView):
                 )
 
                 folder.delete()
+            # 휴지통 이동 기록 삭제
+            TrashFolder.objects.filter(
+                folder_id__in=request.data['folders']).delete()
 
             return Response("OK", content_type="application/json", status=status.HTTP_200_OK)
