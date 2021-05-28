@@ -1,6 +1,7 @@
 import json
 
 import boto3
+from botocore import regions
 from rest_framework.views import APIView
 from rest_framework.generics import get_object_or_404
 from rest_framework import status
@@ -11,6 +12,7 @@ from .models import File
 from folders.models import Folder
 from utils.s3 import *
 from utils.cognito import is_token_valid
+from f4cloud.settings import AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, DEFAULT_CONFIG
 
 
 class FileCreate(APIView):
@@ -36,9 +38,9 @@ class FileCreate(APIView):
         ))
 
         # S3 Address 처리
-        s3_url = get_s3_url('{0}/{1}'.format(
-            request.data['user_id'], request.data['path']
-        ), request.data['name'])
+        s3_url = get_s3_url('{0}/{1}{2}'.format(
+            request.data['user_id'], request.data['path'], request.data['name']
+        ))
 
         # ------------------------
         # DB 처리
@@ -328,40 +330,31 @@ class FileHashTag(APIView):
         file = get_object_or_404(File, **kwargs)
         return file
 
-    def post(self, request):
-        try:
-            data = request.data
-            file_id = data['fileId']
-            user_id = data['userId']
+    def post(self, request, file_id):
+        # Permission 확인
+        if not is_token_valid(token=request.headers['ID-Token'], user_id=request.data['user_id']):
+            return Response(status=status.HTTP_403_FORBIDDEN)
 
-            s3_address = File.objects.values('s3_url').distinct().filter(
-                file_id=file_id, user_id=user_id)
-            s3_address = s3_address[0]['s3_url']
-            client = boto3.client('rekognition')
+        try:
+            file = self.get_object(
+                file_id=file_id, user_id=request.data['user_id']
+            )
+            s3_address = file.s3_url
+            client = boto3.client('rekognition', aws_access_key_id=AWS_ACCESS_KEY_ID,
+                                  aws_secret_access_key=AWS_SECRET_ACCESS_KEY, region_name=DEFAULT_REGION_NAME)
 
             # file_address format : object URL
             proc = s3_address[8:]
             bucket = proc[:proc.find('.')]
             file_key = proc[proc.find('/') + 1:]
 
-            # print(bucket, file_path)
-
-            # if file_path.find('/') != -1:
-            #     file_name = file_path
-            #     while (file_name.find('/') != -1):
-            #         file_name = file_name[file_name.find('/') + 1:]
-            # else:
-            #     file_name = file_path
-
-            # if file_name.find('/') != -1:
-            #     file_name = file_name[file_name.find('/') + 1:]
-
             # Use Amazon rekognition Object detection
             response = client.detect_labels(
                 Image={'S3Object': {'Bucket': bucket, 'Name': file_key}}, MaxLabels=10)
             obj_list = list()
             translate = boto3.client(
-                service_name='translate', region_name='us-east-1', use_ssl=True
+                service_name='translate', region_name='us-east-1', use_ssl=True,
+                aws_access_key_id=AWS_ACCESS_KEY_ID, aws_secret_access_key=AWS_SECRET_ACCESS_KEY
             )
 
             # Set Max
@@ -369,8 +362,6 @@ class FileHashTag(APIView):
             threshold = 95.0
             for label in response['Labels']:
                 max -= 1
-                #print("Label: " + label['Name'])
-                #print("Confidence: " + str(label['Confidence']))
                 if(max == -1):
                     break
                 if(label['Confidence'] > threshold):
@@ -381,7 +372,6 @@ class FileHashTag(APIView):
                     tag = str(result.get('TranslatedText'))
                     tag = tag.replace(' ', '_')
                     obj_list.append(tag)
-            print(obj_list)
             if(len(obj_list) == 0):
                 return Response({'recommend': ''})
             recommend = '#'
@@ -394,24 +384,27 @@ class FileHashTag(APIView):
             print(msg)
             return Response(msg, status=status.HTTP_400_BAD_REQUEST)
 
-    def put(self, request):
-        if request.method == 'PUT':
-            try:
-                data = request.data
-                print(data)
-                file_id = data['fileId']
-                user_id = data['userId']
-                hashtag = data['hashtag']
-                item = File.objects.filter(user_id=user_id, file_id=file_id)
-                item.update(hashtag=hashtag)
-                res = File.objects.values('hashtag').distinct().filter(
-                    user_id=user_id, file_id=file_id)
-                res = res[0]['hashtag']
-                msg = {'hashtag': res}
-                print(msg)
-                return Response(msg, status=status.HTTP_200_OK)
+    def put(self, request, file_id):
+        # Permission 확인
+        if not is_token_valid(token=request.headers['ID-Token'], user_id=request.data['user_id']):
+            return Response(status=status.HTTP_403_FORBIDDEN)
 
-            except Exception as e:
-                msg = {'msg': str(e)}
-                print(msg)
-                return Response(msg, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            file = self.get_object(
+                file_id=file_id, user_id=request.data['user_id']
+            )
+
+            serializers = FileHashTagSerializer(
+                file, {
+                    'hash_tag': request.data['hash_tag']
+                }
+            )
+            if serializers.is_valid():
+                serializers.save()
+
+            return Response(serializers.data, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            msg = {'msg': str(e)}
+            print(msg)
+            return Response(msg, status=status.HTTP_400_BAD_REQUEST)
