@@ -5,11 +5,16 @@ from rest_framework import status
 from files.models import File
 from files.serializers import FileSerializer
 from people.models import *
+from utils.cognito import is_token_valid
 
 
 class SearchKeyword(APIView):
     def get(self, request, format=None):
         try:
+            # Permission 확인
+            if not is_token_valid(token=request.headers['ID-Token'], user_id=request.data['user_id']):
+                return Response(status=status.HTTP_403_FORBIDDEN)
+
             keyword = request.GET['keyword']
             userId = request.GET['userId']
             res = File.objects.filter(
@@ -26,6 +31,10 @@ class SearchKeyword(APIView):
 class SearchHashtag(APIView):
     def get(self, request):
         try:
+            # Permission 확인
+            if not is_token_valid(token=request.headers['ID-Token'], user_id=request.data['user_id']):
+                return Response(status=status.HTTP_403_FORBIDDEN)
+
             user_id = request.GET['userId']
             keyword = request.GET['keyword']
             res = File.objects.filter(
@@ -43,6 +52,10 @@ class SearchHashtag(APIView):
 class SearchGroup(APIView):
     def get(self, request):
         try:
+            # Permission 확인
+            if not is_token_valid(token=request.headers['ID-Token'], user_id=request.data['user_id']):
+                return Response(status=status.HTTP_403_FORBIDDEN)
+
             res = []
             user_id = request.GET['userId']
             group_name = request.GET['groupName']

@@ -18,22 +18,18 @@ from f4cloud.settings import AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, DEFAULT_R
 class FileCreate(APIView):
     # 파일 업로드
     def post(self, request):
-        # # Permission 확인
-        # if not is_token_valid(token=request.headers['ID-Token'], user_id=request.data['user_id']):
-        #     return Response(status=status.HTTP_403_FORBIDDEN)
+        # Permission 확인
+        if not is_token_valid(token=request.headers['ID-Token'], user_id=request.data['user_id']):
+            return Response(status=status.HTTP_403_FORBIDDEN)
 
         # 파일 불러오기
         file = request.FILES.get('file')
 
         # S3 Client 생성
-        # s3_client = get_s3_client(
-        #     request.headers['Access-Key-Id'],
-        #     request.headers['Secret-Key'],
-        #     request.headers['Session-Token'],
-        # )
-
-        s3_client = boto3.client(
-            's3', **DEFAULT_CONFIG
+        s3_client = get_s3_client(
+            request.headers['Access-Key-Id'],
+            request.headers['Secret-Key'],
+            request.headers['Session-Token'],
         )
 
         # S3에 업로드
