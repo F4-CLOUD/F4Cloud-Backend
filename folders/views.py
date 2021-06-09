@@ -51,7 +51,7 @@ class FolderDetail(APIView):
     # 폴더 정보 조회
     def get(self, request, folder_id):
         # Permission 확인
-        if not is_token_valid(token=request.headers['ID-Token'], user_id=request.data['user_id']):
+        if not is_token_valid(token=request.headers['ID-Token'], user_id=request.GET['user_id']):
             return Response(status=status.HTTP_403_FORBIDDEN)
 
         # 폴더 불러오기
@@ -94,11 +94,11 @@ class FolderDetail(APIView):
     # 폴더 휴지통으로 이동
     def delete(self, request, folder_id=None):
         # Permission 확인
-        if not is_token_valid(token=request.headers['ID-Token'], user_id=request.data['user_id']):
+        if not is_token_valid(token=request.headers['ID-Token'], user_id=request.DELETE['user_id']):
             return Response(status=status.HTTP_403_FORBIDDEN)
 
         # 사용자의 휴지통 정보 가져오기
-        trash = request.data['trash']
+        trash = request.DELETE['trash']
 
         # 휴지통으로 옮기려는 폴더 찾기
         folder = self.get_object(folder_id)
@@ -146,7 +146,7 @@ class FolderElements(APIView):
     # 폴더 내 구성 요소 조회
     def get(self, request, folder_id):
         # Permission 확인
-        if not is_token_valid(token=request.headers['ID-Token'], user_id=request.data['user_id']):
+        if not is_token_valid(token=request.headers['ID-Token'], user_id=request.GET['user_id']):
             return Response(status=status.HTTP_403_FORBIDDEN)
 
         # 1. 폴더 목록 조회

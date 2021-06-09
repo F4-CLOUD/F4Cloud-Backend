@@ -72,7 +72,7 @@ class FileDetail(APIView):
     # 파일 정보 조회
     def get(self, request, file_id):
         # Permission 확인
-        if not is_token_valid(token=request.headers['ID-Token'], user_id=request.data['user_id']):
+        if not is_token_valid(token=request.headers['ID-Token'], user_id=request.GET['user_id']):
             return Response(status=status.HTTP_403_FORBIDDEN)
 
         # 파일 정보 확인
@@ -145,11 +145,11 @@ class FileDetail(APIView):
     # 파일 삭제
     def delete(self, request, file_id):
         # Permission 확인
-        if not is_token_valid(token=request.headers['ID-Token'], user_id=request.data['user_id']):
+        if not is_token_valid(token=request.headers['ID-Token'], user_id=request.DELETE['user_id']):
             return Response(status=status.HTTP_403_FORBIDDEN)
 
         # 사용자의 휴지통 정보 가져오기
-        trash = request.data['trash']
+        trash = request.DELETE['trash']
 
         # 파일 불러오기
         file = self.get_object(file_id)
